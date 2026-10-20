@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFrameworks>$(IosTargetFramework);$(MacCatalystTargetFramework)</TargetFrameworks>
+    <SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'ios'">15.0</SupportedOSPlatformVersion>
+    <SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'maccatalyst'">15.0</SupportedOSPlatformVersion>
+    <RootNamespace>BlazorNativeSdk.ApplePlatform</RootNamespace>
+    <IsAotCompatible>true</IsAotCompatible>
+    <Description>iOS and Mac Catalyst adapter for BlazorNativeSdk: runtime permissions, camera and media picking, barcode scanning (AVFoundation live scanning, Vision image detection), document pickers, Keychain secure storage, share sheet, clipboard, Face ID / Touch ID, local notifications with actions and activation routing, Universal Links / URL schemes / quick actions, lifecycle with background time, NWPathMonitor connectivity and BGTaskScheduler-backed background work.</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\BlazorNativeSdk.Abstractions\BlazorNativeSdk.Abstractions.csproj" />
+    <ProjectReference Include="..\BlazorNativeSdk.Core\BlazorNativeSdk.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Maui.Essentials" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="BlazorNativeSdk.iOS.Tests" />
+  </ItemGroup>
+
+</Project>

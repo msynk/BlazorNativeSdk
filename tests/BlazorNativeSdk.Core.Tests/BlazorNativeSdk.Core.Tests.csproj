@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>$(BlazorNativeSdkTargetFramework)</TargetFramework>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>BlazorNativeSdk.Tests</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\BlazorNativeSdk.Abstractions\BlazorNativeSdk.Abstractions.csproj" />
+    <ProjectReference Include="..\..\src\BlazorNativeSdk.Core\BlazorNativeSdk.Core.csproj" />
+    <ProjectReference Include="..\..\src\BlazorNativeSdk.Testing\BlazorNativeSdk.Testing.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="xunit.v3" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" />
+    <PackageReference Include="Microsoft.Extensions.TimeProvider.Testing" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="Xunit" />
+  </ItemGroup>
+
+</Project>

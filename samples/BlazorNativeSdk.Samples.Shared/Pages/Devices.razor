@@ -1,0 +1,225 @@
+@page "/devices"
+@implements IAsyncDisposable
+@inject ICameraService Camera
+@inject IBarcodeScanner Barcodes
+@inject IFilePickerService Files
+@inject IShareService Share
+@inject IClipboardService Clipboard
+@inject IBiometricService Biometrics
+@inject ISecureStorage SecureStorage
+@inject INotificationService Notifications
+@inject IPermissionService Permissions
+
+<PageTitle>Devices</PageTitle>
+<h1>Device capabilities</h1>
+<p>Every button returns a typed result. Try them on different hosts to see how platform differences are reported.</p>
+
+<section class="bns-card">
+    <h2>Camera</h2>
+    <CapabilityView Capability="NativeCapabilities.Camera">
+        <Available>
+            <button class="bns-button" @onclick="CapturePhotoAsync">Take photo</button>
+            <button class="bns-button" @onclick="PickPhotosAsync">Pick from library</button>
+        </Available>
+        <NotAvailable Context="status"><p class="bns-reason">@status.Reason</p></NotAvailable>
+    </CapabilityView>
+    @if (_photo is not null)
+    {
+        <img class="bns-preview" src="@_photo" alt="Captured photo preview" />
+    }
+    <ResultView Outcome="_camera" />
+</section>
+
+<section class="bns-card">
+    <h2>Barcode</h2>
+    <CapabilityView Capability="NativeCapabilities.Barcode" Feature="@BarcodeFeatures.LiveScan">
+        <Available><button class="bns-button" @onclick="ScanAsync">Scan a code</button></Available>
+        <NotAvailable Context="status"><p class="bns-reason">@status.Reason</p></NotAvailable>
+    </CapabilityView>
+    <ResultView Outcome="_barcode" />
+</section>
+
+<section class="bns-card">
+    <h2>Files</h2>
+    <button class="bns-button" @onclick="PickFilesAsync">Open files</button>
+    <button class="bns-button" @onclick="SaveFileAsync">Save a text file</button>
+    <ResultView Outcome="_files" />
+</section>
+
+<section class="bns-card">
+    <h2>Share &amp; clipboard</h2>
+    <input class="bns-input" @bind="_text" aria-label="Text to share or copy" />
+    <button class="bns-button" @onclick="ShareAsync">Share</button>
+    <button class="bns-button" @onclick="CopyAsync">Copy</button>
+    <button class="bns-button" @onclick="PasteAsync">Paste</button>
+    <ResultView Outcome="_share" />
+</section>
+
+<section class="bns-card">
+    <h2>Biometrics &amp; secure storage</h2>
+    <button class="bns-button" @onclick="AuthenticateAsync">Verify it's you</button>
+    <button class="bns-button" @onclick="StoreSecretAsync">Store a token</button>
+    <button class="bns-button" @onclick="ReadSecretAsync">Read the token</button>
+    <ResultView Outcome="_security" />
+</section>
+
+<section class="bns-card">
+    <h2>Notifications</h2>
+    <button class="bns-button" @onclick="NotifyAsync">Notify now</button>
+    <button class="bns-button" @onclick="ScheduleAsync">Notify in 10 seconds</button>
+    <p>Tapping the notification opens <code>/orders/42</code> through the activation pipeline, even from a cold start.</p>
+    <ResultView Outcome="_notifications" />
+</section>
+
+<section class="bns-card">
+    <h2>Permissions</h2>
+    @foreach (var permission in s_permissions)
+    {
+        <button class="bns-button" @onclick="() => CheckPermissionAsync(permission)">@permission</button>
+    }
+    <button class="bns-button" @onclick="OpenSettingsAsync">Open app settings</button>
+    <ResultView Outcome="_permissions" />
+</section>
+
+@code {
+    private static readonly NativePermission[] s_permissions =
+        [NativePermissions.Camera, NativePermissions.Microphone, NativePermissions.Photos, NativePermissions.Notifications];
+
+    private string? _photo;
+    private string _text = "Hello from BlazorNativeSdk";
+    private Outcome? _camera, _barcode, _files, _share, _security, _notifications, _permissions;
+    private NativeFile? _lastFile;
+
+    private async Task CapturePhotoAsync()
+    {
+        var result = await Camera.CapturePhotoAsync(new PhotoCaptureOptions { MaxDimension = 1280, Quality = 80 });
+        _camera = Outcome.From(result, f => $"{f.Name}, {f.Size ?? 0:N0} bytes");
+        if (result.IsSuccess)
+        {
+            await ShowPreviewAsync(result.Value);
+        }
+    }
+
+    private async Task PickPhotosAsync()
+    {
+        var result = await Camera.PickMediaAsync(new MediaPickOptions { Kinds = MediaKinds.Image, AllowMultiple = true, SelectionLimit = 5 });
+        _camera = Outcome.From(result, files => $"{files.Count} item(s) picked");
+        if (result.IsSuccess && result.Value.Count > 0)
+        {
+            await ShowPreviewAsync(result.Value[0]);
+        }
+    }
+
+    private async Task ShowPreviewAsync(NativeFile file)
+    {
+        if (_lastFile is not null)
+        {
+            await _lastFile.DisposeAsync();
+        }
+
+        _lastFile = file;
+        var bytes = await file.ReadAllBytesAsync(maxAllowedSize: 8 * 1024 * 1024);
+        _photo = $"data:{file.ContentType ?? "image/jpeg"};base64,{Convert.ToBase64String(bytes)}";
+    }
+
+    private async Task ScanAsync()
+    {
+        var result = await Barcodes.ScanAsync(new BarcodeScanOptions { Prompt = "Point the camera at a QR code", Timeout = TimeSpan.FromSeconds(60) });
+        _barcode = Outcome.From(result, b => $"{b.Format}: {b.RawValue}");
+    }
+
+    private async Task PickFilesAsync()
+    {
+        var result = await Files.PickFilesAsync(new FilePickOptions { AllowMultiple = true, FileTypes = [FileTypeFilter.Images, FileTypeFilter.Pdf, FileTypeFilter.Text] });
+        _files = Outcome.From(result, files => string.Join(", ", files.Select(f => f.ToString())));
+        if (result.IsSuccess)
+        {
+            foreach (var file in result.Value)
+            {
+                await file.DisposeAsync();
+            }
+        }
+    }
+
+    private async Task SaveFileAsync()
+    {
+        using var content = new MemoryStream(System.Text.Encoding.UTF8.GetBytes($"Saved by BlazorNativeSdk at {DateTimeOffset.Now:O}\n"));
+        var result = await Files.SaveFileAsync(new FileSaveRequest { SuggestedFileName = "hello.txt", Content = content, FileTypes = [FileTypeFilter.Text] });
+        _files = Outcome.From(result, saved => $"{saved.FileName} via {saved.Method}{(saved.FullPath is null ? string.Empty : " at " + saved.FullPath)}");
+    }
+
+    private async Task ShareAsync()
+    {
+        var result = await Share.ShareAsync(new ShareRequest { Title = "BlazorNativeSdk", Text = _text, Uri = new Uri("https://samples.blazornativesdk.dev/orders/42") });
+        _share = Outcome.From(result, "Share sheet shown.");
+    }
+
+    private async Task CopyAsync() => _share = Outcome.From(await Clipboard.SetTextAsync(_text), "Copied.");
+
+    private async Task PasteAsync()
+    {
+        var result = await Clipboard.GetTextAsync();
+        _share = Outcome.From(result, text => text is null ? "The clipboard holds no text." : $"Pasted: {text}");
+    }
+
+    private async Task AuthenticateAsync()
+    {
+        var result = await Biometrics.AuthenticateAsync(new BiometricRequest { Reason = "Confirm it's you to reveal the demo token", AllowDeviceCredential = true });
+        _security = Outcome.From(result, a => $"Verified ({a.Method}).");
+    }
+
+    private async Task StoreSecretAsync() =>
+        _security = Outcome.From(await SecureStorage.SetAsync("demo-token", Guid.NewGuid().ToString("N")), $"Stored with {SecureStorage.Protection} protection.");
+
+    private async Task ReadSecretAsync()
+    {
+        var result = await SecureStorage.GetAsync("demo-token");
+        _security = Outcome.From(result, token => token is null ? "No token stored yet." : $"Token: {token[..6]}…");
+    }
+
+    private async Task NotifyAsync()
+    {
+        var permission = await Notifications.RequestPermissionAsync();
+        if (!permission.IsSuccess)
+        {
+            _notifications = Outcome.From(permission, _ => string.Empty);
+            return;
+        }
+
+        var result = await Notifications.ShowAsync(OrderNotification());
+        _notifications = Outcome.From(result, "Notification shown.");
+    }
+
+    private async Task ScheduleAsync()
+    {
+        await Notifications.RequestPermissionAsync();
+        var result = await Notifications.ScheduleAsync(OrderNotification(), new NotificationSchedule { DeliverAt = DateTimeOffset.Now.AddSeconds(10) });
+        _notifications = Outcome.From(result, "Scheduled for delivery in 10 seconds. Try closing the app.");
+    }
+
+    private static LocalNotification OrderNotification() => new()
+    {
+        Id = "order-42",
+        Title = "Order #42 shipped",
+        Body = "Tap to see the tracking details.",
+        Route = "/orders/42",
+        Data = new Dictionary<string, string> { ["source"] = "devices-page" },
+        Actions = [new NotificationAction("reply", "Reply") { AcceptsText = true, TextPlaceholder = "Message the courier" }],
+    };
+
+    private async Task CheckPermissionAsync(NativePermission permission)
+    {
+        var result = await Permissions.EnsureAsync(permission);
+        _permissions = Outcome.From(result, status => $"{permission}: {status}");
+    }
+
+    private async Task OpenSettingsAsync() => _permissions = Outcome.From(await Permissions.OpenAppSettingsAsync(), "Settings opened.");
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_lastFile is not null)
+        {
+            await _lastFile.DisposeAsync();
+        }
+    }
+}

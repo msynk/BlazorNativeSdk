@@ -1,0 +1,48 @@
+@page "/"
+@inject ICapabilityRegistry Registry
+
+<PageTitle>Capabilities</PageTitle>
+<h1>Capabilities</h1>
+<p>
+    What this host can do right now. Nothing here prompts the user; statuses come from
+    <code>ICapabilityRegistry.GetStatusAsync</code>.
+</p>
+
+<button class="bns-button" @onclick="LoadAsync">Refresh</button>
+
+@if (_statuses is null)
+{
+    <p>Loading…</p>
+}
+else
+{
+    <table class="bns-table">
+        <thead>
+            <tr><th>Capability</th><th>Status</th><th>Adapter</th><th>Features</th><th>Reason</th></tr>
+        </thead>
+        <tbody>
+            @foreach (var status in _statuses)
+            {
+                <tr>
+                    <td><code>@status.Capability</code></td>
+                    <td><StatusBadge Availability="status.Availability" Title="@status.ReasonCode" /></td>
+                    <td>@status.Adapter</td>
+                    <td>@string.Join(", ", status.Features.Order())</td>
+                    <td class="bns-reason">@status.Reason</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+    private IReadOnlyList<CapabilityStatus>? _statuses;
+
+    protected override Task OnInitializedAsync() => LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        _statuses = null;
+        _statuses = await Registry.GetAllStatusesAsync();
+    }
+}

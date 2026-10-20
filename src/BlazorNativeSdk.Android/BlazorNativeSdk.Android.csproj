@@ -1,0 +1,37 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>$(AndroidTargetFramework)</TargetFramework>
+    <SupportedOSPlatformVersion>24</SupportedOSPlatformVersion>
+    <RootNamespace>BlazorNativeSdk.AndroidPlatform</RootNamespace>
+    <AssemblyName>BlazorNativeSdk.Android</AssemblyName>
+    <UseMaui>false</UseMaui>
+    <IsTrimmable>true</IsTrimmable>
+    <Description>Android adapter for BlazorNativeSdk: permissions, camera and media picking, Google Code Scanner barcodes, Storage Access Framework files, Keystore-backed secure storage, share sheet, clipboard, BiometricPrompt, local and scheduled notifications with actions, deep links and App Links, lifecycle, connectivity and WorkManager background work. Works in .NET MAUI Blazor Hybrid apps and .NET for Android apps that initialize Microsoft.Maui.Essentials.</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\BlazorNativeSdk.Abstractions\BlazorNativeSdk.Abstractions.csproj" />
+    <ProjectReference Include="..\BlazorNativeSdk.Core\BlazorNativeSdk.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Maui.Essentials" />
+    <PackageReference Include="Xamarin.AndroidX.Biometric" />
+    <PackageReference Include="Xamarin.AndroidX.Work.Runtime" />
+    <PackageReference Include="Xamarin.GooglePlayServices.Code.Scanner" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- The Android SDK's implicit global usings (Android.App, Android.Widget) collide with SDK contract types such as
+         NotificationChannel and NotificationImportance; platform namespaces are imported explicitly per file instead. -->
+    <Using Remove="Android.App" />
+    <Using Remove="Android.Widget" />
+    <Using Remove="Android.OS.Bundle" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="BlazorNativeSdk.Android.Tests" />
+  </ItemGroup>
+
+</Project>

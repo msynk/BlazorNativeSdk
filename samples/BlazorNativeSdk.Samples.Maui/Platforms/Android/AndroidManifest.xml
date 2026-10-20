@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+  <!-- Network: HTTP transfers, connectivity status -->
+  <uses-permission android:name="android.permission.INTERNET" />
+  <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+
+  <!-- Camera capture (Essentials checks it even though the camera app takes the picture) -->
+  <uses-permission android:name="android.permission.CAMERA" />
+
+  <!-- Notifications (Android 13+ runtime permission) -->
+  <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+  <!-- Re-arm scheduled notifications after reboot; WorkManager also re-schedules work after reboot -->
+  <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+  <!-- Exact scheduled notifications (user-granted on Android 12+; without it delivery may be deferred) -->
+  <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
+
+  <!-- Biometrics (also merged from AndroidX Biometric; declared for clarity) -->
+  <uses-permission android:name="android.permission.USE_BIOMETRIC" />
+
+  <!-- NativePermissions.Photos (Android 13+, partial access on 14+) and legacy storage -->
+  <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
+  <uses-permission android:name="android.permission.READ_MEDIA_VISUAL_USER_SELECTED" />
+  <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32" />
+  <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="28" />
+
+  <!-- Android 11+ package visibility for camera capture -->
+  <queries>
+    <intent>
+      <action android:name="android.media.action.IMAGE_CAPTURE" />
+    </intent>
+    <intent>
+      <action android:name="android.media.action.VIDEO_CAPTURE" />
+    </intent>
+  </queries>
+
+  <!-- Deep-link intent filters (bnssample:// and verified https App Links) are declared on MainActivity. -->
+  <application
+    android:allowBackup="true"
+    android:icon="@mipmap/appicon"
+    android:roundIcon="@mipmap/appicon_round"
+    android:supportsRtl="true"
+    android:fullBackupContent="@xml/backup_rules"
+    android:dataExtractionRules="@xml/data_extraction_rules">
+    <!-- Download the Google code scanner module at install time instead of on first scan -->
+    <meta-data android:name="com.google.mlkit.vision.DEPENDENCIES" android:value="barcode_ui" />
+  </application>
+
+</manifest>

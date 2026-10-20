@@ -1,0 +1,70 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFrameworks>$(AndroidTargetFramework);$(IosTargetFramework);$(MacCatalystTargetFramework)</TargetFrameworks>
+    <TargetFrameworks Condition="$([MSBuild]::IsOSPlatform('windows'))">$(TargetFrameworks);$(WindowsTargetFramework)</TargetFrameworks>
+    <UseMaui>true</UseMaui>
+    <SingleProject>false</SingleProject>
+    <RootNamespace>BlazorNativeSdk.Maui</RootNamespace>
+    <AssemblyName>BlazorNativeSdk.Maui</AssemblyName>
+    <!-- [LibraryImport] marshalling stubs (Win32 owner windows, foreground hand-off). -->
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <IsTrimmable>true</IsTrimmable>
+    <Description>.NET MAUI host integration for BlazorNativeSdk: one call (UseBlazorNativeSdk) registers the platform adapter for each target (Android, iOS, Mac Catalyst, Windows), wires MAUI lifecycle events to deep-link, notification and shortcut activation, starts the SDK at app launch (so WorkManager and BGTaskScheduler wakes find services ready), enforces a single instance on Windows (packaged and unpackaged) and provides multi-window management with placement persistence on Windows and Mac Catalyst.</Description>
+    <PackageTags>$(PackageTags);maui-integration</PackageTags>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'android'">24</SupportedOSPlatformVersion>
+    <SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'ios'">15.0</SupportedOSPlatformVersion>
+    <SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'maccatalyst'">15.0</SupportedOSPlatformVersion>
+    <SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'windows'">10.0.17763.0</SupportedOSPlatformVersion>
+    <TargetPlatformMinVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'windows'">10.0.17763.0</TargetPlatformMinVersion>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Maui.Controls" />
+    <!-- Only the BlazorWebView API is needed here. The package's build targets register Blazor static web assets, which
+         belong to the app: imported into this library they would be published twice (conflicting assets) in the app. -->
+    <PackageReference Include="Microsoft.AspNetCore.Components.WebView.Maui" ExcludeAssets="build;buildTransitive" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\BlazorNativeSdk.Abstractions\BlazorNativeSdk.Abstractions.csproj" />
+    <ProjectReference Include="..\BlazorNativeSdk.Core\BlazorNativeSdk.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'android'">
+    <ProjectReference Include="..\BlazorNativeSdk.Android\BlazorNativeSdk.Android.csproj" />
+    <!-- MAUI pins Kotlin extension bindings to older AndroidX versions than the adapter's dependencies (Biometric, WorkManager,
+         Play services) resolve. Referencing the aligned bindings keeps the package graph consistent (no NU1608). -->
+    <PackageReference Include="Xamarin.AndroidX.Activity.Ktx" />
+    <PackageReference Include="Xamarin.AndroidX.Collection.Ktx" />
+    <PackageReference Include="Xamarin.AndroidX.Fragment.Ktx" />
+    <PackageReference Include="Xamarin.AndroidX.Lifecycle.Runtime.Ktx" />
+    <PackageReference Include="Xamarin.AndroidX.Lifecycle.Runtime.Ktx.Android" />
+    <PackageReference Include="Xamarin.AndroidX.Lifecycle.ViewModel.Ktx" />
+    <PackageReference Include="Xamarin.AndroidX.SavedState.SavedState.Ktx" />
+  </ItemGroup>
+
+  <ItemGroup Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'ios' Or $([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'maccatalyst'">
+    <ProjectReference Include="..\BlazorNativeSdk.iOS\BlazorNativeSdk.iOS.csproj" />
+  </ItemGroup>
+
+  <ItemGroup Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'windows'">
+    <ProjectReference Include="..\BlazorNativeSdk.Windows\BlazorNativeSdk.Windows.csproj" />
+    <ProjectReference Include="..\BlazorNativeSdk.Desktop\BlazorNativeSdk.Desktop.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- The Android SDK's implicit global usings (Android.App, Android.Widget) collide with MAUI and SDK types. -->
+    <Using Remove="Android.App" />
+    <Using Remove="Android.Widget" />
+    <Using Remove="Android.OS.Bundle" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="BlazorNativeSdk.Maui.Tests" />
+  </ItemGroup>
+
+</Project>

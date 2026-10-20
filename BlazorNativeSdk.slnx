@@ -1,0 +1,27 @@
+<Solution>
+  <Folder Name="/samples/">
+    <Project Path="samples/BlazorNativeSdk.Samples.Maui/BlazorNativeSdk.Samples.Maui.csproj" />
+    <Project Path="samples/BlazorNativeSdk.Samples.Shared/BlazorNativeSdk.Samples.Shared.csproj" />
+    <Project Path="samples/BlazorNativeSdk.Samples.Wasm/BlazorNativeSdk.Samples.Wasm.csproj" />
+    <Project Path="samples/BlazorNativeSdk.Samples.Wpf/BlazorNativeSdk.Samples.Wpf.csproj" />
+  </Folder>
+  <Folder Name="/src/">
+    <Project Path="src/BlazorNativeSdk.Abstractions/BlazorNativeSdk.Abstractions.csproj" />
+    <Project Path="src/BlazorNativeSdk.Android/BlazorNativeSdk.Android.csproj" />
+    <Project Path="src/BlazorNativeSdk.Browser/BlazorNativeSdk.Browser.csproj" />
+    <Project Path="src/BlazorNativeSdk.Core/BlazorNativeSdk.Core.csproj" />
+    <Project Path="src/BlazorNativeSdk.Desktop/BlazorNativeSdk.Desktop.csproj" />
+    <Project Path="src/BlazorNativeSdk.iOS/BlazorNativeSdk.iOS.csproj" />
+    <Project Path="src/BlazorNativeSdk.Maui/BlazorNativeSdk.Maui.csproj" />
+    <Project Path="src/BlazorNativeSdk.Testing/BlazorNativeSdk.Testing.csproj" />
+    <Project Path="src/BlazorNativeSdk.Windows/BlazorNativeSdk.Windows.csproj" />
+    <Project Path="src/BlazorNativeSdk.Wpf/BlazorNativeSdk.Wpf.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/BlazorNativeSdk.Browser.Tests/BlazorNativeSdk.Browser.Tests.csproj" />
+    <Project Path="tests/BlazorNativeSdk.Core.Tests/BlazorNativeSdk.Core.Tests.csproj" />
+    <Project Path="tests/BlazorNativeSdk.Desktop.Tests/BlazorNativeSdk.Desktop.Tests.csproj" />
+    <Project Path="tests/BlazorNativeSdk.Windows.Tests/BlazorNativeSdk.Windows.Tests.csproj" />
+    <Project Path="tests/BlazorNativeSdk.Wpf.Tests/BlazorNativeSdk.Wpf.Tests.csproj" />
+  </Folder>
+</Solution>

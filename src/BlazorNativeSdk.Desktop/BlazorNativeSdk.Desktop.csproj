@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>$(BlazorNativeSdkTargetFramework)</TargetFramework>
+    <RootNamespace>BlazorNativeSdk.Desktop</RootNamespace>
+    <IsAotCompatible>true</IsAotCompatible>
+    <!-- Required by the [LibraryImport] source generator (P/Invoke marshalling stubs). -->
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <Description>Host-neutral desktop services for BlazorNativeSdk on Windows, macOS and Linux: authenticated local IPC (named pipes / Unix domain sockets), single-instance enforcement with argument and deep-link forwarding, shell file operations (reveal, open, trash) and custom URL scheme registration. Works with WPF, WinForms, MAUI, Photino and custom hosts.</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\BlazorNativeSdk.Abstractions\BlazorNativeSdk.Abstractions.csproj" />
+    <ProjectReference Include="..\BlazorNativeSdk.Core\BlazorNativeSdk.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />
+    <PackageReference Include="Microsoft.Extensions.Options" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="BlazorNativeSdk.Desktop.Tests" />
+  </ItemGroup>
+
+</Project>

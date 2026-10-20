@@ -1,0 +1,10 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>$(BlazorNativeSdkTargetFramework)</TargetFramework>
+    <RootNamespace>BlazorNativeSdk</RootNamespace>
+    <IsAotCompatible>true</IsAotCompatible>
+    <Description>Contracts for BlazorNativeSdk: a host-neutral, capability-aware API for device features (camera, barcode, files, secure storage, share, biometrics, clipboard, permissions, notifications, deep links), desktop shell integration and application lifecycle in Blazor apps. Reference this package from libraries that only consume capabilities.</Description>
+  </PropertyGroup>
+
+</Project>

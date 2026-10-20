@@ -1,0 +1,131 @@
+@page "/desktop"
+@implements IAsyncDisposable
+@inject IWindowManager Windows
+@inject IScreenService Screens
+@inject ITrayService Tray
+@inject IGlobalShortcutService Shortcuts
+@inject INativeMenuService Menus
+@inject IDesktopFileOperations FileOperations
+@inject IAppStorage Storage
+@inject ActivityLog Log
+
+<PageTitle>Desktop</PageTitle>
+<h1>Desktop shell</h1>
+<p>On phones and in browsers these capabilities report <em>Unsupported</em>; the page shows why instead of failing.</p>
+
+<section class="bns-card">
+    <h2>Windows</h2>
+    <CapabilityView Capability="NativeCapabilities.Windows">
+        <Available>
+            <button class="bns-button" @onclick="OpenSettingsWindowAsync">Open settings window</button>
+            <p>Open windows: @string.Join(", ", Windows.Windows.Select(w => $"{w.Id} ({w.State})"))</p>
+        </Available>
+        <NotAvailable Context="status"><p class="bns-reason">@status.Reason</p></NotAvailable>
+    </CapabilityView>
+    <button class="bns-button" @onclick="ListDisplaysAsync">List displays</button>
+    <ResultView Outcome="_windows" />
+</section>
+
+<section class="bns-card">
+    <h2>Tray &amp; global shortcut</h2>
+    <button class="bns-button" @onclick="CreateTrayAsync" disabled="@(_tray is not null)">Add tray icon</button>
+    <button class="bns-button" @onclick="RegisterShortcutAsync" disabled="@(_shortcut is not null)">Register Ctrl+Alt+Shift+B</button>
+    <ResultView Outcome="_shell" />
+</section>
+
+<section class="bns-card">
+    <h2>Menus &amp; files</h2>
+    <button class="bns-button" @onclick="ShowContextMenuAsync">Show context menu</button>
+    <button class="bns-button" @onclick="RevealAppDataAsync">Reveal app data folder</button>
+    <button class="bns-button" @onclick="OpenWebsiteAsync">Open website</button>
+    <ResultView Outcome="_menus" />
+</section>
+
+@code {
+    private Outcome? _windows, _shell, _menus;
+    private ITrayIcon? _tray;
+    private IGlobalShortcutRegistration? _shortcut;
+
+    private async Task OpenSettingsWindowAsync()
+    {
+        var result = await Windows.OpenAsync(new WindowOptions { Id = "settings", Title = "Settings", Route = "/", Width = 640, Height = 480 });
+        _windows = Outcome.From(result, w => $"Window '{w.Id}' at {w.Bounds}.");
+    }
+
+    private async Task ListDisplaysAsync()
+    {
+        var result = await Screens.GetDisplaysAsync();
+        _windows = Outcome.From(result, displays => string.Join("; ", displays.Select(d => $"{d.Name ?? d.Id} {d.Bounds.Width}x{d.Bounds.Height} @{d.ScaleFactor:0.##}x{(d.IsPrimary ? " (primary)" : string.Empty)}")));
+    }
+
+    private async Task CreateTrayAsync()
+    {
+        var menu = NativeMenu.Create(
+            NativeMenuItem.Create("show", "Show window", async () =>
+            {
+                Log.Add("Tray: show window");
+                if (Windows.MainWindow is { } main)
+                {
+                    await main.FocusAsync();
+                }
+            }),
+            NativeMenuItem.Separator(),
+            NativeMenuItem.ForRole(NativeMenuRole.Quit, "Quit"));
+        var result = await Tray.CreateAsync(new TrayIconOptions { Id = "sample", Tooltip = "BlazorNativeSdk sample", Menu = menu });
+        _shell = Outcome.From(result, icon => $"Tray icon '{icon.Id}' added.");
+        if (result.IsSuccess)
+        {
+            _tray = result.Value;
+            _tray.Clicked += (_, _) => Log.Add("Tray icon clicked");
+        }
+    }
+
+    private async Task RegisterShortcutAsync()
+    {
+        var result = await Shortcuts.RegisterAsync(KeyGesture.Parse("Ctrl+Alt+Shift+B"), () =>
+        {
+            Log.Add("Global shortcut pressed");
+            return ValueTask.CompletedTask;
+        });
+        _shell = Outcome.From(result, r => $"Registered {r.Gesture}. Press it from any app.");
+        if (result.IsSuccess)
+        {
+            _shortcut = result.Value;
+        }
+    }
+
+    private async Task ShowContextMenuAsync()
+    {
+        var menu = NativeMenu.Create(
+            NativeMenuItem.Create("copy", "Copy", accelerator: "CmdOrCtrl+C"),
+            NativeMenuItem.Create("rename", "Rename…"),
+            NativeMenuItem.Separator(),
+            NativeMenuItem.Submenu("Sort by", NativeMenuItem.Create("name", "Name"), NativeMenuItem.Create("date", "Date")));
+        var result = await Menus.ShowContextMenuAsync(menu);
+        _menus = Outcome.From(result, id => $"Chose '{id}'.");
+    }
+
+    private async Task RevealAppDataAsync()
+    {
+        var directory = Storage.GetDirectory(AppDirectory.AppData);
+        _menus = directory.IsSuccess
+            ? Outcome.From(await FileOperations.OpenPathAsync(directory.Value), $"Opened {directory.Value}.")
+            : Outcome.From(directory, _ => string.Empty);
+    }
+
+    private async Task OpenWebsiteAsync() =>
+        _menus = Outcome.From(await FileOperations.OpenUriAsync(new Uri("https://learn.microsoft.com/aspnet/core/blazor/hybrid/")), "Opened in the default browser.");
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_tray is not null)
+        {
+            await _tray.DisposeAsync();
+        }
+
+        if (_shortcut is not null)
+        {
+            await _shortcut.DisposeAsync();
+        }
+    }
+}

@@ -1,0 +1,17 @@
+@* Shows the outcome of the last native operation with a status-specific style. *@
+@if (Outcome is not null)
+{
+    <div class="bns-result bns-result--@Outcome.Status.ToString().ToLowerInvariant()" role="status" aria-live="polite">
+        <strong>@Outcome.Status</strong>
+        @if (!string.IsNullOrEmpty(Outcome.Code))
+        {
+            <code>@Outcome.Code</code>
+        }
+        <span>@Outcome.Message</span>
+    </div>
+}
+
+@code {
+    /// <summary>The outcome to show.</summary>
+    [Parameter] public Outcome? Outcome { get; set; }
+}

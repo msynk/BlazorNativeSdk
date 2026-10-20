@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk.BlazorWebAssembly">
+
+  <PropertyGroup>
+    <TargetFramework>$(BlazorNativeSdkTargetFramework)</TargetFramework>
+    <RootNamespace>BlazorNativeSdk.Samples.Wasm</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly" />
+    <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.DevServer" PrivateAssets="all" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\BlazorNativeSdk.Browser\BlazorNativeSdk.Browser.csproj" />
+    <ProjectReference Include="..\BlazorNativeSdk.Samples.Shared\BlazorNativeSdk.Samples.Shared.csproj" />
+  </ItemGroup>
+
+</Project>

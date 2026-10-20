@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk.Razor">
+
+  <PropertyGroup>
+    <TargetFramework>$(BlazorNativeSdkTargetFramework)</TargetFramework>
+    <RootNamespace>BlazorNativeSdk.Browser</RootNamespace>
+    <IsAotCompatible>true</IsAotCompatible>
+    <Description>Browser adapter for BlazorNativeSdk: camera capture overlay, barcode scanning (Shape Detection API), file open/save, Web Share, clipboard, permissions, notifications with service-worker routing, page lifecycle, connectivity, protocol handlers and PWA launch activation for Blazor WebAssembly and Blazor Server.</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <SupportedPlatform Include="browser" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\BlazorNativeSdk.Abstractions\BlazorNativeSdk.Abstractions.csproj" />
+    <ProjectReference Include="..\BlazorNativeSdk.Core\BlazorNativeSdk.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Components.Web" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="BlazorNativeSdk.Browser.Tests" />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,12 @@
+{
+  "name": "BlazorNativeSdk samples",
+  "short_name": "BNS samples",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#f7f7f8",
+  "theme_color": "#3b5bdb",
+  "launch_handler": { "client_mode": "focus-existing" },
+  "protocol_handlers": [
+    { "protocol": "web+bnssample", "url": "/?bns-link=%s" }
+  ]
+}

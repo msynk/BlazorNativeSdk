@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>$(BlazorNativeSdkTargetFramework)</TargetFramework>
+    <RootNamespace>BlazorNativeSdk</RootNamespace>
+    <IsAotCompatible>true</IsAotCompatible>
+    <Description>Runtime for BlazorNativeSdk: dependency injection builder, capability registry, honest "unsupported" fallbacks, activation/deep-link routing with cold-start buffering, lifecycle helpers, a persisted in-process work scheduler, resumable HTTP transfers and workflow checkpoints. Adapters (Browser, Android, iOS, Windows, Desktop, MAUI, WPF) plug into this package.</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\BlazorNativeSdk.Abstractions\BlazorNativeSdk.Abstractions.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Components" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />
+    <PackageReference Include="Microsoft.Extensions.Options" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="BlazorNativeSdk.Core.Tests" />
+    <InternalsVisibleTo Include="BlazorNativeSdk.Testing" />
+  </ItemGroup>
+
+</Project>

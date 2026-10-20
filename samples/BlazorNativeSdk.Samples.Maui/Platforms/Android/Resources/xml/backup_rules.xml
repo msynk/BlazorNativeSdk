@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Android 6-11 (android:fullBackupContent). Keystore keys are never backed up, so a restored copy of the Essentials
+     secure-storage file could not be decrypted: exclude it. -->
+<full-backup-content>
+  <exclude domain="sharedpref" path="dev.blazornativesdk.samples.microsoft.maui.essentials.preferences.xml" />
+</full-backup-content>

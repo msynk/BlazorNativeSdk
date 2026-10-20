@@ -1,0 +1,18 @@
+@page "/orders/{Id}"
+@inject IAppActivationService Activation
+
+<PageTitle>Order @Id</PageTitle>
+<h1>Order #@Id</h1>
+<p>
+    You got here through a deep link or a notification tap. Try <code>@SampleServices.Scheme://orders/7</code>
+    or <code>https://samples.blazornativesdk.dev/orders/7</code> on a configured host.
+</p>
+@if (Activation.LaunchActivation is { } launch)
+{
+    <p>The app was launched by: <code>@launch</code></p>
+}
+
+@code {
+    /// <summary>The order id from the route.</summary>
+    [Parameter] public string Id { get; set; } = string.Empty;
+}

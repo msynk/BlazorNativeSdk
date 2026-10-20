@@ -1,0 +1,80 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+env:
+  DOTNET_NOLOGO: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+
+jobs:
+  portable:
+    name: Portable packages (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+      - name: Build
+        run: |
+          dotnet build src/BlazorNativeSdk.Testing -c Release
+          dotnet build src/BlazorNativeSdk.Browser -c Release
+          dotnet build src/BlazorNativeSdk.Desktop -c Release
+      - name: Test
+        run: |
+          dotnet test --project tests/BlazorNativeSdk.Core.Tests -c Release
+          dotnet test --project tests/BlazorNativeSdk.Desktop.Tests -c Release
+          dotnet test --project tests/BlazorNativeSdk.Browser.Tests -c Release
+
+  windows:
+    name: Full solution, Windows adapter and WPF host
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+      - run: dotnet workload install android ios maccatalyst maui
+      # Every package and sample; the MAUI sample builds its Android and Windows targets here (Apple app targets need a Mac).
+      - run: dotnet build BlazorNativeSdk.slnx -c Release
+      - run: dotnet test --project tests/BlazorNativeSdk.Windows.Tests -c Release
+      - run: dotnet test --project tests/BlazorNativeSdk.Wpf.Tests -c Release
+
+  mobile:
+    name: Android, iOS and MAUI
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+      - run: dotnet workload install android ios maccatalyst maui
+      - run: dotnet build src/BlazorNativeSdk.Android -c Release
+      - run: dotnet build src/BlazorNativeSdk.iOS -c Release
+      - run: dotnet build src/BlazorNativeSdk.Maui -c Release -p:TargetFrameworks="net10.0-android;net10.0-ios;net10.0-maccatalyst"
+
+  pack:
+    name: Pack
+    needs: [portable, windows, mobile]
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+      - run: dotnet workload install android ios maccatalyst maui
+      - run: dotnet pack BlazorNativeSdk.slnx -c Release -o artifacts
+      - uses: actions/upload-artifact@v4
+        with:
+          name: packages
+          path: artifacts/*.nupkg

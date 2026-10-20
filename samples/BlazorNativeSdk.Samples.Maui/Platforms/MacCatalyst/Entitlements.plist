@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+    <dict>
+        <!-- App Sandbox (required for the Mac App Store). -->
+        <key>com.apple.security.app-sandbox</key>
+        <true/>
+        <!-- Outgoing connections: HTTP transfers, connectivity checks. -->
+        <key>com.apple.security.network.client</key>
+        <true/>
+        <!-- Camera and microphone inside the sandbox (barcode scanning, video). -->
+        <key>com.apple.security.device.camera</key>
+        <true/>
+        <key>com.apple.security.device.audio-input</key>
+        <true/>
+        <!-- Open and save panels (file pickers, folder access). -->
+        <key>com.apple.security.files.user-selected.read-write</key>
+        <true/>
+        <!--
+            Secure storage needs keychain-access-groups ($(AppIdentifierPrefix)dev.blazornativesdk.samples) and Universal Links
+            need com.apple.developer.associated-domains (applinks:samples.blazornativesdk.dev). Both require a provisioning
+            profile, so add them when you sign the app with your team.
+        -->
+    </dict>
+</plist>

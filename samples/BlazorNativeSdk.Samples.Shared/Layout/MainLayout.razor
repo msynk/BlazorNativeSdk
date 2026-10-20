@@ -1,0 +1,21 @@
+@inherits LayoutComponentBase
+@inject ICapabilityRegistry Registry
+
+<div class="bns-shell">
+    <header class="bns-header">
+        <span class="bns-brand">BlazorNativeSdk</span>
+        <span class="bns-host">@Registry.Host</span>
+    </header>
+    <nav class="bns-nav" aria-label="Sections">
+        <NavLink href="" Match="NavLinkMatch.All">Capabilities</NavLink>
+        <NavLink href="devices">Devices</NavLink>
+        <NavLink href="lifecycle">Lifecycle</NavLink>
+        <NavLink href="desktop">Desktop</NavLink>
+    </nav>
+    <main class="bns-main">
+        @Body
+    </main>
+</div>
+
+@* Replays deep links and notification taps received before the UI was ready, and starts SDK background services. *@
+<NativeActivationOutlet />

@@ -1,0 +1,189 @@
+@page "/lifecycle"
+@implements IDisposable
+@inject IAppLifecycle Lifecycle
+@inject IConnectivityService Connectivity
+@inject IBackgroundWorkScheduler Scheduler
+@inject ITransferService Transfers
+@inject IWorkflowCheckpointStore Checkpoints
+@inject ActivityLog Log
+
+<PageTitle>Lifecycle</PageTitle>
+<h1>Lifecycle &amp; background work</h1>
+
+<section class="bns-card">
+    <h2>State</h2>
+    <p>Lifecycle: <strong>@Lifecycle.State</strong> · Network: <strong>@Connectivity.Current.Access</strong>
+        (@string.Join(", ", Connectivity.Current.ConnectionTypes)@(Connectivity.Current.IsMetered == true ? ", metered" : string.Empty))</p>
+</section>
+
+<section class="bns-card">
+    <h2>Background work</h2>
+    <p class="bns-reason">@Scheduler.Policy.Summary</p>
+    <button class="bns-button" @onclick="ScheduleOnceAsync">Sync once (needs network)</button>
+    <button class="bns-button" @onclick="SchedulePeriodicAsync">Sync every 15 minutes</button>
+    <button class="bns-button" @onclick="RefreshWorkAsync">Refresh</button>
+    <ResultView Outcome="_work" />
+    @if (_workItems is { Count: > 0 })
+    {
+        <ul>
+            @foreach (var item in _workItems)
+            {
+                <li><code>@item.Id</code> @item.Status, attempts @item.Attempts @(item.EarliestNextRun is { } next ? $"next ≥ {next.ToLocalTime():T}" : string.Empty)</li>
+            }
+        </ul>
+    }
+</section>
+
+<section class="bns-card">
+    <h2>Resumable download</h2>
+    <p class="bns-reason">@Transfers.Policy.Summary</p>
+    <input class="bns-input" @bind="_downloadUrl" aria-label="File to download" />
+    <button class="bns-button" @onclick="DownloadAsync">Download</button>
+    <ResultView Outcome="_transfer" />
+    @if (_progress is not null)
+    {
+        <progress max="1" value="@_progress.Progress" aria-label="Download progress"></progress>
+        <span>@_progress.Status @(_progress.BytesTransferred / 1024) KB</span>
+    }
+</section>
+
+<section class="bns-card">
+    <h2>Resumable workflow</h2>
+    <p>Fill in a step, then kill the app. The form comes back from its checkpoint.</p>
+    <input class="bns-input" @bind="_draft" @bind:after="SaveDraftAsync" placeholder="Inspection notes" aria-label="Inspection notes" />
+    <button class="bns-button" @onclick="CompleteDraftAsync">Submit</button>
+    @if (_restored)
+    {
+        <p>Restored from a checkpoint saved at @_restoredAt?.ToLocalTime().</p>
+    }
+</section>
+
+<section class="bns-card">
+    <h2>Activity</h2>
+    <ul class="bns-log">
+        @foreach (var entry in Log.Entries.Take(30))
+        {
+            <li>@entry</li>
+        }
+    </ul>
+</section>
+
+@code {
+    private Outcome? _work, _transfer;
+    private IReadOnlyList<WorkInfo>? _workItems;
+    private TransferInfo? _progress;
+    private string? _draft;
+    private string _downloadUrl = "https://proof.ovh.net/files/10Mb.dat";
+    private bool _restored;
+    private DateTimeOffset? _restoredAt;
+    private IDisposable? _transitions;
+
+    protected override async Task OnInitializedAsync()
+    {
+        Lifecycle.StateChanged += OnStateChanged;
+        Connectivity.Changed += OnConnectivityChanged;
+        Transfers.TransferChanged += OnTransferChanged;
+        Log.Changed += OnLogChanged;
+        _transitions = Lifecycle.RegisterTransitionHandler(async (e, ct) =>
+        {
+            if (e.IsBackgrounding && !string.IsNullOrEmpty(_draft))
+            {
+                await Checkpoints.SaveAsync(new WorkflowCheckpoint { WorkflowId = "inspection", StateJson = System.Text.Json.JsonSerializer.Serialize(_draft, SampleJson.Default.String), Route = "/lifecycle" }, ct);
+            }
+        });
+
+        var checkpoint = await Checkpoints.GetAsync("inspection");
+        if (checkpoint is not null)
+        {
+            _draft = checkpoint.GetState(SampleJson.Default.String);
+            _restored = true;
+            _restoredAt = checkpoint.SavedAt;
+        }
+
+        await RefreshWorkAsync();
+    }
+
+    private async Task ScheduleOnceAsync()
+    {
+        var result = await Scheduler.ScheduleAsync(new WorkRequest { Id = "sync-once", WorkerName = DemoSyncWorker.Name, Constraints = WorkConstraints.NetworkConnected });
+        _work = Outcome.From(result, w => $"Scheduled '{w.Id}'.");
+        await RefreshWorkAsync();
+    }
+
+    private async Task SchedulePeriodicAsync()
+    {
+        var result = await Scheduler.ScheduleAsync(new WorkRequest { Id = "sync-periodic", WorkerName = DemoSyncWorker.Name, RepeatInterval = TimeSpan.FromMinutes(15), ExistingPolicy = ExistingWorkPolicy.Keep });
+        _work = Outcome.From(result, w => $"Scheduled '{w.Id}'.");
+        await RefreshWorkAsync();
+    }
+
+    private async Task RefreshWorkAsync()
+    {
+        var result = await Scheduler.GetWorkAsync();
+        _workItems = result.IsSuccess ? result.Value : null;
+    }
+
+    private async Task DownloadAsync()
+    {
+        if (!Uri.TryCreate(_downloadUrl, UriKind.Absolute, out _))
+        {
+            _transfer = new Outcome(NativeResultStatus.Failed, NativeErrorCodes.InvalidArgument, "Enter an absolute URL.");
+            return;
+        }
+
+        var result = await Transfers.EnqueueDownloadAsync(new DownloadRequest
+        {
+            Id = "sample-download-" + Guid.NewGuid().ToString("N")[..6],
+            Uri = new Uri(_downloadUrl),
+            DestinationPath = "downloads/" + Path.GetFileName(new Uri(_downloadUrl).AbsolutePath),
+        });
+        _transfer = Outcome.From(result, t => $"Queued '{t.Id}' to {t.LocalPath}.");
+    }
+
+    private async Task SaveDraftAsync() =>
+        await Checkpoints.SaveAsync(new WorkflowCheckpoint
+        {
+            WorkflowId = "inspection",
+            StateJson = System.Text.Json.JsonSerializer.Serialize(_draft ?? string.Empty, SampleJson.Default.String),
+            Route = "/lifecycle",
+            Description = "Unfinished inspection notes",
+            ExpiresAt = DateTimeOffset.UtcNow.AddDays(3),
+        });
+
+    private async Task CompleteDraftAsync()
+    {
+        await Checkpoints.CompleteAsync("inspection");
+        Log.Add($"Submitted inspection notes: {_draft}");
+        _draft = null;
+        _restored = false;
+    }
+
+    private void OnStateChanged(object? sender, AppLifecycleChangedEventArgs e)
+    {
+        Log.Add($"Lifecycle {e.Previous} → {e.Current} ({e.Reason})");
+        _ = InvokeAsync(StateHasChanged);
+    }
+
+    private void OnConnectivityChanged(object? sender, ConnectivityChangedEventArgs e)
+    {
+        Log.Add($"Network {e.Previous.Access} → {e.Current.Access}");
+        _ = InvokeAsync(StateHasChanged);
+    }
+
+    private void OnTransferChanged(object? sender, TransferInfo info)
+    {
+        _progress = info;
+        _ = InvokeAsync(StateHasChanged);
+    }
+
+    private void OnLogChanged() => _ = InvokeAsync(StateHasChanged);
+
+    public void Dispose()
+    {
+        Lifecycle.StateChanged -= OnStateChanged;
+        Connectivity.Changed -= OnConnectivityChanged;
+        Transfers.TransferChanged -= OnTransferChanged;
+        Log.Changed -= OnLogChanged;
+        _transitions?.Dispose();
+    }
+}

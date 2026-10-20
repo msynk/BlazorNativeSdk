@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>$(WindowsTargetFramework)</TargetFramework>
+    <SupportedOSPlatformVersion>10.0.17763.0</SupportedOSPlatformVersion>
+    <UseWPF>true</UseWPF>
+    <RootNamespace>BlazorNativeSdk.Wpf</RootNamespace>
+    <AssemblyName>BlazorNativeSdk.Wpf</AssemblyName>
+    <Description>WPF host integration for BlazorNativeSdk: declares the WPF host, wires the Windows and Desktop adapters to the WPF dispatcher and main window, opens and tracks BlazorWebView windows with placement persistence (IWindowManager), maps WPF application and window events to the app lifecycle, and provides a startup helper with single-instance enforcement and launch-activation publishing.</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\BlazorNativeSdk.Abstractions\BlazorNativeSdk.Abstractions.csproj" />
+    <ProjectReference Include="..\BlazorNativeSdk.Core\BlazorNativeSdk.Core.csproj" />
+    <ProjectReference Include="..\BlazorNativeSdk.Windows\BlazorNativeSdk.Windows.csproj" />
+    <ProjectReference Include="..\BlazorNativeSdk.Desktop\BlazorNativeSdk.Desktop.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Components.WebView.Wpf" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />
+    <PackageReference Include="Microsoft.Extensions.Options" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="BlazorNativeSdk.Wpf.Tests" />
+  </ItemGroup>
+
+</Project>

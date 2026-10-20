@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>LSRequiresIPhoneOS</key>
+    <true/>
+    <key>UIDeviceFamily</key>
+    <array>
+        <integer>1</integer>
+        <integer>2</integer>
+    </array>
+    <key>UIRequiredDeviceCapabilities</key>
+    <array>
+        <string>arm64</string>
+    </array>
+    <key>UISupportedInterfaceOrientations</key>
+    <array>
+        <string>UIInterfaceOrientationPortrait</string>
+        <string>UIInterfaceOrientationLandscapeLeft</string>
+        <string>UIInterfaceOrientationLandscapeRight</string>
+    </array>
+    <key>UISupportedInterfaceOrientations~ipad</key>
+    <array>
+        <string>UIInterfaceOrientationPortrait</string>
+        <string>UIInterfaceOrientationPortraitUpsideDown</string>
+        <string>UIInterfaceOrientationLandscapeLeft</string>
+        <string>UIInterfaceOrientationLandscapeRight</string>
+    </array>
+    <key>XSAppIconAssets</key>
+    <string>Assets.xcassets/appicon.appiconset</string>
+
+    <!-- Privacy usage descriptions: the adapter returns MissingDeclaration instead of calling an API whose key is missing. -->
+    <key>NSCameraUsageDescription</key>
+    <string>The samples take photos and scan barcodes with the camera.</string>
+    <key>NSMicrophoneUsageDescription</key>
+    <string>Videos recorded by the samples include sound.</string>
+    <key>NSPhotoLibraryUsageDescription</key>
+    <string>The samples show how to check photo library access.</string>
+    <key>NSPhotoLibraryAddUsageDescription</key>
+    <string>The samples can save captured photos to your library.</string>
+    <key>NSFaceIDUsageDescription</key>
+    <string>The samples demonstrate unlocking a secret with Face ID.</string>
+
+    <!-- Custom URL scheme: bnssample://orders/42 -> /orders/42 -->
+    <key>CFBundleURLTypes</key>
+    <array>
+        <dict>
+            <key>CFBundleURLName</key>
+            <string>dev.blazornativesdk.samples</string>
+            <key>CFBundleURLSchemes</key>
+            <array>
+                <string>bnssample</string>
+            </array>
+            <key>CFBundleTypeRole</key>
+            <string>Viewer</string>
+        </dict>
+    </array>
+
+    <!-- Background work: the iOS adapter's default identifiers ({CFBundleIdentifier}.bns.refresh / .bns.processing). -->
+    <key>BGTaskSchedulerPermittedIdentifiers</key>
+    <array>
+        <string>dev.blazornativesdk.samples.bns.refresh</string>
+        <string>dev.blazornativesdk.samples.bns.processing</string>
+    </array>
+    <key>UIBackgroundModes</key>
+    <array>
+        <string>fetch</string>
+        <string>processing</string>
+    </array>
+
+    <!-- Make AppDirectory.Documents visible in the Files app -->
+    <key>UIFileSharingEnabled</key>
+    <true/>
+    <key>LSSupportsOpeningDocumentsInPlace</key>
+    <true/>
+</dict>
+</plist>

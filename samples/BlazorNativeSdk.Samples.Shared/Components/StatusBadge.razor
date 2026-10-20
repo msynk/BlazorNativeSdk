@@ -1,0 +1,20 @@
+@* Renders a capability availability as an accessible badge. *@
+<span class="bns-badge bns-badge--@Availability.ToString().ToLowerInvariant()" title="@Title">@Label</span>
+
+@code {
+    /// <summary>The availability.</summary>
+    [Parameter] public CapabilityAvailability Availability { get; set; }
+
+    /// <summary>Optional tooltip.</summary>
+    [Parameter] public string? Title { get; set; }
+
+    private string Label => Availability switch
+    {
+        CapabilityAvailability.Available => "Available",
+        CapabilityAvailability.RequiresPermission => "Needs permission",
+        CapabilityAvailability.PermissionDenied => "Denied",
+        CapabilityAvailability.Unavailable => "Unavailable",
+        CapabilityAvailability.Unsupported => "Unsupported",
+        _ => "Unknown",
+    };
+}
