@@ -17,12 +17,12 @@
 <section class="bns-card">
     <h2>Camera</h2>
     <CapabilityView Capability="NativeCapabilities.Camera">
-        <Available>
-            <button class="bns-button" @onclick="CapturePhotoAsync">Take photo</button>
-            <button class="bns-button" @onclick="PickPhotosAsync">Pick from library</button>
-        </Available>
+        <Available><button class="bns-button" @onclick="CapturePhotoAsync">Take photo</button></Available>
         <NotAvailable Context="status"><p class="bns-reason">@status.Reason</p></NotAvailable>
     </CapabilityView>
+    @* Picking needs no camera access (in a browser it is a file picker), so it stays when the camera is denied or missing.
+       Hosts without a media picker answer with a typed Unsupported result. *@
+    <button class="bns-button" @onclick="PickPhotosAsync">Pick from library</button>
     @if (_photo is not null)
     {
         <img class="bns-preview" src="@_photo" alt="Captured photo preview" />

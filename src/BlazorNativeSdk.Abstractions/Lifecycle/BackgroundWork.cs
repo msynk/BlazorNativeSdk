@@ -7,7 +7,10 @@ public enum WorkConstraints
     /// <summary>No constraints.</summary>
     None = 0,
 
-    /// <summary>Any network connection.</summary>
+    /// <summary>
+    /// Any network connection. The in-process scheduler accepts internet or local-network access
+    /// (<see cref="ConnectivitySnapshot.IsConnected"/>); OS schedulers apply their own definition.
+    /// </summary>
     NetworkConnected = 1,
 
     /// <summary>An unmetered (typically Wi-Fi) connection.</summary>

@@ -16,7 +16,6 @@ internal sealed class MauiIntegration
 {
     private IServiceProvider? _services;
     private MauiWindowTracker? _tracker;
-    private int _firstLaunchClaimed;
     private int _firstSceneClaimed;
 
     /// <summary>The window tracker, once the service provider is attached.</summary>
@@ -24,6 +23,9 @@ internal sealed class MauiIntegration
 
     /// <summary>Correlates iOS launch options with the callbacks that deliver them.</summary>
     public ActivationReplayFilter ReplayFilter { get; } = new();
+
+    /// <summary>Finds the intent that launched the process (Android).</summary>
+    public AndroidLaunchTracker AndroidLaunches { get; } = new();
 
     /// <summary>Attaches the application's root service provider. Called on the UI thread while the MAUI app is built.</summary>
     public void Attach(IServiceProvider services)
@@ -40,9 +42,6 @@ internal sealed class MauiIntegration
 
         Volatile.Write(ref _tracker, tracker);
     }
-
-    /// <summary>Returns <see langword="true"/> once per process: for the first UI launch (Android).</summary>
-    public bool TryClaimFirstLaunch() => Interlocked.Exchange(ref _firstLaunchClaimed, 1) == 0;
 
     /// <summary>Returns <see langword="true"/> once per process: for the first scene that connects (iOS / Mac Catalyst).</summary>
     public bool TryClaimFirstScene() => Interlocked.Exchange(ref _firstSceneClaimed, 1) == 0;

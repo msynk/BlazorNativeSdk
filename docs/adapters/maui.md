@@ -63,13 +63,16 @@ action therefore finds the services running although no component ever renders.
 
 | | Android | iOS / Mac Catalyst | Windows |
 | --- | --- | --- | --- |
-| Launch | `OnCreate` of a `MauiAppCompatActivity` without saved state → `AndroidActivation.HandleIntent(intent, isColdStart)`; cold start = first UI launch of the process | `AppleNativeSdk.Initialize(refresh, processing)` with the identifiers from `AppleNativeOptions` before launch completes; launch-option URL / user activity / quick action are published as the cold start when iOS delivers them | single instance, then the launch activation from the command line (unpackaged) or from `AppInstance.GetActivatedEventArgs()` (packaged: protocol, file, launch) |
+| Launch | `OnCreate` of a `MauiAppCompatActivity` without saved state → `AndroidActivation.HandleIntent(intent, isColdStart)`; cold start = first UI launch of the process, or the intent that re-created a restored first activity | `AppleNativeSdk.Initialize(refresh, processing)` with the identifiers from `AppleNativeOptions` before launch completes; launch-option URL / user activity / quick action are published as the cold start when iOS delivers them | single instance, then the launch activation from the command line (unpackaged) or from `AppInstance.GetActivatedEventArgs()` (packaged: protocol, file, launch) |
 | Running app | `OnNewIntent` → `HandleIntent(intent, false)` | `OpenUrl`, `ContinueUserActivity`, `PerformActionForShortcutItem`; scenes: `SceneWillConnect` (URL contexts, user activities, quick action), `SceneOpenUrl`, `SceneContinueUserActivity` | forwarded arguments from a second instance; packaged: `AppInstance.Activated` |
 | Lifecycle | `AndroidAppLifecycle` | `AppleAppLifecycle` | `MauiWindowLifecycle` (below) |
 | Windows | – | Mac Catalyst: `IWindowManager` | `IWindowManager`, `IWindowsHostBridge` |
 
 * **Android**: helper activities (Essentials media/file pickers, web authenticator) are ignored. A restored activity
-  (non-null saved state) never replays its launch intent, following the Android adapter's guidance.
+  (non-null saved state) never replays its launch intent, following the Android adapter's guidance. When the OS killed the
+  process in the background and a notification tap or link brings the app back, Android re-creates the activity from saved
+  state and delivers that intent to `OnNewIntent` before the activity resumes: it is published as the cold start. A restored
+  first activity that resumes without one (reopened from recents) publishes a plain cold-start `Launch`.
 * **iOS / Mac Catalyst**: iOS delivers launch-option URLs, activities and quick actions again through the delegate callbacks,
   and MAUI replays a scene's launch quick action when the scene activates. The integration publishes each one once and
   flags the right one as the cold start. MAUI's internal window activities (`__MAUI…`) are not published. Quick-action

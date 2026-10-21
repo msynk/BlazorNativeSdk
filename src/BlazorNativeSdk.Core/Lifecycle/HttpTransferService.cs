@@ -127,10 +127,17 @@ public sealed partial class HttpTransferService : ITransferService, INativeSdkSt
 
     private HttpClient Client => _client ??= _options.HttpClientFactory?.Invoke(_services) ?? s_sharedClient.Value;
 
+    private bool IsDurable => _store is not Storage.InMemoryStateStore;
+
     /// <inheritdoc />
     public ValueTask<CapabilityStatus> GetStatusAsync(CancellationToken cancellationToken = default)
     {
-        var features = new List<string> { "resume-downloads", "retry", "persisted" };
+        var features = new List<string> { "resume-downloads", "retry" };
+        if (IsDurable)
+        {
+            features.Add("persisted");
+        }
+
         if (Policy.ContinuesInBackground)
         {
             features.Add("continues-in-background");
@@ -141,7 +148,10 @@ public sealed partial class HttpTransferService : ITransferService, INativeSdkSt
             features.Add("continues-after-termination");
         }
 
-        return ValueTask.FromResult(CapabilityStatus.Available(Capability, _options.AdapterName, [.. features]));
+        var status = CapabilityStatus.Available(Capability, _options.AdapterName, [.. features]);
+        return ValueTask.FromResult(IsDurable
+            ? status
+            : status with { Reason = "No durable state store is registered; queued transfers are lost when the app exits." });
     }
 
     /// <inheritdoc />
@@ -435,19 +445,23 @@ public sealed partial class HttpTransferService : ITransferService, INativeSdkSt
 
     private TransferPolicy CreatePolicy()
     {
+        // Without a durable state store the queue lives in memory and is gone when the process ends.
+        var lost = IsDurable ? string.Empty : " No durable state store is registered, so queued transfers are lost when the app exits.";
         var background = _options.UseBackgroundWork ? _services.GetService<IBackgroundWorkScheduler>()?.Policy : null;
         if (background is { RunsInBackground: true })
         {
+            var afterTermination = IsDurable && background.RunsAfterTermination;
             return new TransferPolicy
             {
                 Adapter = _options.AdapterName,
                 ContinuesInBackground = true,
-                ContinuesAfterTermination = background.RunsAfterTermination,
+                ContinuesAfterTermination = afterTermination,
                 ResumesDownloads = true,
-                Summary = "Transfers are persisted, wait for connectivity, retry with backoff and resume downloads from the last byte when the " +
+                Summary = (IsDurable ? "Transfers are persisted, wait" : "Transfers wait") +
+                          " for connectivity, retry with backoff and resume downloads from the last byte when the " +
                           $"server supports range requests. While transfers are pending, the '{background.Adapter}' scheduler runs the queue in the background" +
-                          (background.RunsAfterTermination ? " and after the app was closed" : string.Empty) +
-                          ", within the execution windows the OS grants. Interrupted uploads start again from the beginning.",
+                          (afterTermination ? " and after the app was closed" : string.Empty) +
+                          ", within the execution windows the OS grants. Interrupted uploads start again from the beginning." + lost,
             };
         }
 
@@ -457,8 +471,9 @@ public sealed partial class HttpTransferService : ITransferService, INativeSdkSt
             ContinuesInBackground = _options.ContinuesInBackground,
             ContinuesAfterTermination = false,
             ResumesDownloads = true,
-            Summary = "Transfers run inside the app process, wait for connectivity, retry with backoff and resume after restarts. " +
-                      "Downloads continue from the last byte when the server supports range requests. Nothing transfers while the app is closed.",
+            Summary = "Transfers run inside the app process, wait for connectivity, retry with backoff" +
+                      (IsDurable ? " and resume after restarts. " : ". ") +
+                      "Downloads continue from the last byte when the server supports range requests. Nothing transfers while the app is closed." + lost,
         };
     }
 
@@ -475,7 +490,8 @@ public sealed partial class HttpTransferService : ITransferService, INativeSdkSt
                     return BackgroundState.Active;
                 case TransferStatus.Retrying when record.NextAttemptAt is not { } next || next - now <= s_backgroundRetryWindow:
                     return BackgroundState.Active;
-                case TransferStatus.WaitingForNetwork when NetworkAllows(record, connectivity):
+                case TransferStatus.WaitingForNetwork when NetworkAllows(record, connectivity) &&
+                                                           (record.NextAttemptAt is not { } probe || probe - now <= s_backgroundRetryWindow):
                     return BackgroundState.Active;
                 case TransferStatus.Retrying or TransferStatus.WaitingForNetwork:
                     state = BackgroundState.Waiting;
@@ -701,7 +717,9 @@ public sealed partial class HttpTransferService : ITransferService, INativeSdkSt
             return true;
         }
 
-        if (!snapshot.IsOnline)
+        // Local access counts: the server may be on the local network, or the OS's internet probe failed although servers
+        // are reachable. A failed attempt then waits for connectivity and probes again (HandleFailureAsync).
+        if (!snapshot.IsConnected)
         {
             return false;
         }
@@ -718,7 +736,7 @@ public sealed partial class HttpTransferService : ITransferService, INativeSdkSt
     {
         var now = _time.GetUtcNow();
         var next = _records.Values
-            .Where(r => r.Status is TransferStatus.Retrying or TransferStatus.Queued && r.NextAttemptAt is not null)
+            .Where(r => r.Status is TransferStatus.Retrying or TransferStatus.Queued or TransferStatus.WaitingForNetwork && r.NextAttemptAt is not null)
             .Select(r => r.NextAttemptAt!.Value)
             .DefaultIfEmpty(now + TimeSpan.FromSeconds(30))
             .Min();
@@ -777,12 +795,17 @@ public sealed partial class HttpTransferService : ITransferService, INativeSdkSt
             record.HttpStatusCode = statusCode;
         }
 
-        if (transient && !_connectivity.Current.IsOnline && _connectivity.Current.Access != NetworkAccess.Unknown)
+        var connectivity = _connectivity.Current;
+        if (transient && !connectivity.IsOnline && connectivity.Access != NetworkAccess.Unknown)
         {
+            // Without reported internet access a failure does not use up a retry. On local access the next attempt probes
+            // again after the maximum backoff (the OS may misreport, or the network may get internet access silently);
+            // otherwise the transfer waits until connectivity changes.
             await UpdateAsync(record, r =>
             {
                 r.Status = TransferStatus.WaitingForNetwork;
                 r.ErrorMessage = ex.Message;
+                r.NextAttemptAt = connectivity.IsConnected ? _time.GetUtcNow() + _options.MaximumBackoff : null;
             }, CancellationToken.None).ConfigureAwait(false);
             return;
         }
@@ -1033,7 +1056,8 @@ public sealed partial class HttpTransferService : ITransferService, INativeSdkSt
 
     private void OnConnectivityChanged(object? sender, ConnectivityChangedEventArgs e)
     {
-        if (e.CameOnline)
+        // Better connectivity (including local access after none) ends the wait of a probing transfer right away.
+        if (e.CameOnline || !e.Previous.IsConnected && e.Current.IsConnected)
         {
             foreach (var record in _records.Values.Where(r => r.Status == TransferStatus.WaitingForNetwork))
             {

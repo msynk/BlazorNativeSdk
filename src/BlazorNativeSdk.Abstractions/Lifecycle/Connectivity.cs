@@ -64,6 +64,15 @@ public sealed record ConnectivitySnapshot
 
     /// <summary><see langword="true"/> when internet access is reported.</summary>
     public bool IsOnline => Access == NetworkAccess.Internet;
+
+    /// <summary>
+    /// <see langword="true"/> when a network that may reach servers is reported: <see cref="NetworkAccess.Internet"/> or
+    /// <see cref="NetworkAccess.Local"/>. Local access counts because the server may be on the local network, and because
+    /// operating systems also report it when their own internet probe fails although servers are reachable (Windows does
+    /// behind some proxies and filtered networks). A captive portal (<see cref="NetworkAccess.ConstrainedInternet"/>) does
+    /// not count: requests would reach the portal instead of the server.
+    /// </summary>
+    public bool IsConnected => Access is NetworkAccess.Internet or NetworkAccess.Local;
 }
 
 /// <summary>Connectivity change event data.</summary>

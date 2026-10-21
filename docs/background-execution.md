@@ -14,6 +14,15 @@ design around them and explain them to users.
 | Desktop (in-process) | Yes, while the process runs | No; resumes on next launch | Work is persisted | Close to requested | Machine sleep pauses everything. |
 | Browser (in-process) | No; only while the page is open and visible | No; resumes when the page reopens | Work is persisted in `localStorage` | Close to requested in foreground | Background tabs are throttled and may be frozen or discarded. |
 
+The in-process scheduler persists work through `INativeStateStore`. When only the in-memory store is registered (the
+default on Blazor Server), its policy and status say that scheduled work is lost when the app exits instead of
+promising that it resumes.
+
+Its `WorkConstraints.NetworkConnected` accepts internet or local-network access (`ConnectivitySnapshot.IsConnected`),
+but not a captive portal. Windows reports local access when its own internet probe fails, which happens behind some
+proxies and filtered networks although servers are reachable; a worker that cannot reach its server returns
+`WorkResult.Retry()`.
+
 Rules for workers:
 
 1. **Be idempotent.** Every platform may run a worker more than once.
@@ -43,6 +52,11 @@ keeps them running while the app is not in the foreground:
 | Mac Catalyst, Windows, desktop (`HttpTransferService`) | Yes, while the process runs | No; resumes on next launch | Machine sleep pauses transfers. |
 | Blazor Server (`HttpTransferService`) | Runs on the server | Server process lifetime | Uses the server's network, not the user's browser. |
 | Blazor WebAssembly | – | – | Not available: reports `Unsupported`. |
+
+The Core `HttpTransferService` also runs transfers on local-network access (see the scheduler's network constraint
+above). A transient failure without reported internet access does not use up a retry: the transfer waits for
+connectivity and, on local access, tries again after `HttpTransferOptions.MaximumBackoff`. Like the scheduler, it
+reports when no durable state store is registered and queued transfers would be lost on exit.
 
 The Core `HttpTransferService` resumes downloads with `Range` and `If-Range` requests. With
 `HttpTransferOptions.UseBackgroundWork` it hands its queue to the registered `IBackgroundWorkScheduler`; the Android

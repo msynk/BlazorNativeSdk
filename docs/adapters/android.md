@@ -59,6 +59,8 @@ public class MainActivity : MauiAppCompatActivity
     {
         base.OnNewIntent(intent);
         Intent = intent;
+        // When the OS killed the process in the background, a notification tap or link re-creates this activity from
+        // saved state and arrives here before OnResume: pass isColdStart: true for that first intent of the process.
         AndroidActivation.HandleIntent(intent, isColdStart: false);
     }
 }

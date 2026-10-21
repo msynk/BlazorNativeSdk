@@ -111,6 +111,34 @@ public sealed class BackgroundWorkTests : IAsyncDisposable
     }
 
     [Fact]
+    public async Task Network_constraint_accepts_local_access_but_not_a_captive_portal()
+    {
+        // Windows reports local access when its internet probe fails, although servers may be reachable.
+        var connectivity = _provider.GetRequiredService<FakeConnectivityService>();
+        connectivity.Set(new ConnectivitySnapshot { Access = NetworkAccess.ConstrainedInternet, ConnectionTypes = [ConnectionType.Ethernet] });
+        await Scheduler.ScheduleAsync(new WorkRequest { Id = "n", WorkerName = "sync", Constraints = WorkConstraints.NetworkConnected }, Ct);
+
+        Assert.Equal(0, await Scheduler.RunDueWorkAsync(false, Ct));
+
+        connectivity.Set(new ConnectivitySnapshot { Access = NetworkAccess.Local, ConnectionTypes = [ConnectionType.Ethernet] });
+        Assert.Equal(1, await Scheduler.RunDueWorkAsync(false, Ct));
+    }
+
+    [Fact]
+    public async Task Without_a_durable_store_the_policy_does_not_promise_persistence()
+    {
+        // AddFakes registers the in-memory state store.
+        Assert.False(Scheduler.Policy.PersistsAcrossLaunches);
+        Assert.False(Scheduler.Policy.SurvivesReboot);
+        Assert.Contains("lost when the app exits", Scheduler.Policy.Summary, StringComparison.Ordinal);
+        Assert.DoesNotContain("resumes after restarts", Scheduler.Policy.Summary, StringComparison.Ordinal);
+
+        var status = await Scheduler.GetStatusAsync(Ct);
+        Assert.DoesNotContain("persisted", status.Features);
+        Assert.NotNull(status.Reason);
+    }
+
+    [Fact]
     public async Task Unmetered_constraint_skips_metered_networks()
     {
         var connectivity = _provider.GetRequiredService<FakeConnectivityService>();

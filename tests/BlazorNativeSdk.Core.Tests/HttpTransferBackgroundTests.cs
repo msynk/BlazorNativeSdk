@@ -51,14 +51,30 @@ public sealed class HttpTransferBackgroundTests : IAsyncDisposable
     [Fact]
     public async Task Policy_and_status_report_the_scheduler_guarantees()
     {
-        var transfers = Create(useBackgroundWork: true);
+        var transfers = Create(useBackgroundWork: true, new FileStateStore(Path.Combine(_root, "state")));
 
         Assert.True(transfers.Policy.ContinuesInBackground);
         Assert.True(transfers.Policy.ContinuesAfterTermination);
         Assert.True(transfers.Policy.ResumesDownloads);
         var status = await transfers.GetStatusAsync(Ct);
+        Assert.Contains("persisted", status.Features);
         Assert.Contains("continues-in-background", status.Features);
         Assert.Contains("continues-after-termination", status.Features);
+        Assert.Null(status.Reason);
+    }
+
+    [Fact]
+    public async Task Without_a_durable_store_nothing_continues_after_termination()
+    {
+        var transfers = Create(useBackgroundWork: true, new InMemoryStateStore());
+
+        Assert.True(transfers.Policy.ContinuesInBackground);
+        Assert.False(transfers.Policy.ContinuesAfterTermination);
+        Assert.Contains("lost when the app exits", transfers.Policy.Summary, StringComparison.Ordinal);
+        var status = await transfers.GetStatusAsync(Ct);
+        Assert.DoesNotContain("persisted", status.Features);
+        Assert.DoesNotContain("continues-after-termination", status.Features);
+        Assert.NotNull(status.Reason);
     }
 
     [Fact]

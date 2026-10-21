@@ -115,6 +115,37 @@ public sealed class HttpTransferServiceTests : IAsyncDisposable
     }
 
     [Fact]
+    public async Task Transfers_run_on_local_network_access()
+    {
+        // Windows reports local access when its internet probe fails, although servers may be reachable.
+        _provider.GetRequiredService<FakeConnectivityService>().Set(new ConnectivitySnapshot { Access = NetworkAccess.Local, ConnectionTypes = [ConnectionType.Ethernet] });
+        await Transfers.StartAsync(Ct);
+
+        await Transfers.EnqueueDownloadAsync(new DownloadRequest { Id = "l1", Uri = new Uri("https://files.test/l.bin"), DestinationPath = "l.bin" }, Ct);
+
+        Assert.Equal(TransferStatus.Completed, (await WaitAsync("l1")).Status);
+    }
+
+    [Fact]
+    public async Task Failures_on_local_access_wait_without_using_retries_and_probe_again()
+    {
+        _provider.GetRequiredService<FakeConnectivityService>().Set(new ConnectivitySnapshot { Access = NetworkAccess.Local, ConnectionTypes = [ConnectionType.Ethernet] });
+        _server.ServiceUnavailableResponses = 1;
+        await Transfers.StartAsync(Ct);
+
+        await Transfers.EnqueueDownloadAsync(new DownloadRequest { Id = "l2", Uri = new Uri("https://files.test/m.bin"), DestinationPath = "m.bin" }, Ct);
+        await PollAsync(async () => (await Transfers.GetTransfersAsync(Ct)).Single().Status == TransferStatus.WaitingForNetwork);
+        Assert.Single(_server.Requests);
+
+        _time.Advance(TimeSpan.FromMinutes(5)); // HttpTransferOptions.MaximumBackoff
+        var done = await WaitAsync("l2", advanceClock: true);
+
+        Assert.Equal(TransferStatus.Completed, done.Status);
+        Assert.Equal(0, done.Retries);
+        Assert.Equal(2, _server.Requests.Count);
+    }
+
+    [Fact]
     public async Task Uploads_files_as_multipart_form_data()
     {
         var source = Path.Combine(_root, "upload.txt");

@@ -16,5 +16,11 @@ public sealed class MainPage : ContentPage
         webView.RootComponents.Add(new RootComponent { Selector = "#app", ComponentType = typeof(Routes) });
         webView.RootComponents.Add(new RootComponent { Selector = "head::after", ComponentType = typeof(HeadOutlet) });
         Content = webView;
+
+        // Android 15+ draws apps edge to edge and its WebView reports no env(safe-area-inset-*) values, so keep the page out
+        // of the status and navigation bars (and above the keyboard) natively instead of relying on CSS. The page color
+        // matches --bns-bg in samples.css, so the band behind the system bars blends in.
+        SafeAreaEdges = SafeAreaEdges.All;
+        this.SetAppThemeColor(BackgroundColorProperty, Color.FromArgb("#f7f7f8"), Color.FromArgb("#121214"));
     }
 }

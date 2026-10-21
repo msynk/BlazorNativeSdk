@@ -101,6 +101,9 @@
         }
 
         await RefreshWorkAsync();
+
+        // Show the newest download again after navigating away and back; it kept running meanwhile.
+        _progress = (await Transfers.GetTransfersAsync()).OrderByDescending(t => t.CreatedAt).FirstOrDefault();
     }
 
     private async Task ScheduleOnceAsync()

@@ -12,6 +12,7 @@
   -->
   <ItemGroup>
     <Compile Include="..\..\src\BlazorNativeSdk.Maui\Activation\ActivationReplayFilter.cs" Link="Linked\ActivationReplayFilter.cs" />
+    <Compile Include="..\..\src\BlazorNativeSdk.Maui\Activation\AndroidLaunchTracker.cs" Link="Linked\AndroidLaunchTracker.cs" />
     <Compile Include="..\..\src\BlazorNativeSdk.Maui\Lifecycle\MauiLifecycleMapper.cs" Link="Linked\MauiLifecycleMapper.cs" />
     <Compile Include="..\..\src\BlazorNativeSdk.Maui\Windowing\MauiWindowIds.cs" Link="Linked\MauiWindowIds.cs" />
     <Compile Include="..\..\src\BlazorNativeSdk.Maui\Windowing\MauiWindowRoutes.cs" Link="Linked\MauiWindowRoutes.cs" />

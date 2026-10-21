@@ -34,8 +34,8 @@ public sealed class InProcessWorkOptions
 
 /// <summary>
 /// A persisted work scheduler that runs <see cref="IBackgroundWorker"/>s inside the app process. Work survives app
-/// restarts (it is stored in <see cref="INativeStateStore"/>) and resumes on the next launch, but it only runs while the
-/// process is alive. OS adapters (iOS <c>BGTaskScheduler</c>) call <see cref="RunDueWorkAsync"/> when the OS wakes the app.
+/// restarts (it is stored in <see cref="INativeStateStore"/>, unless only the in-memory store is registered) and resumes
+/// on the next launch, but it only runs while the process is alive. OS adapters (iOS <c>BGTaskScheduler</c>) call <see cref="RunDueWorkAsync"/> when the OS wakes the app.
 /// </summary>
 public sealed partial class InProcessBackgroundWorkScheduler : IBackgroundWorkScheduler, INativeSdkStartupTask, IAsyncDisposable, IDisposable
 {
@@ -72,19 +72,25 @@ public sealed partial class InProcessBackgroundWorkScheduler : IBackgroundWorkSc
         _options = options.Value;
         _logger = logger;
         _time = timeProvider ?? TimeProvider.System;
+
+        // Without a durable state store (for example on a server) the queue lives in memory: report that instead of
+        // promising work that resumes after restarts.
+        var durable = store is not Storage.InMemoryStateStore;
+        var restarts = durable ? " and resumes after restarts" : string.Empty;
+        var lost = durable ? string.Empty : " No durable state store is registered, so scheduled work is lost when the app exits.";
         Policy = new BackgroundExecutionPolicy
         {
             Adapter = _options.AdapterName,
             RunsInBackground = _options.RunWhileInBackground,
             RunsAfterTermination = false,
-            SurvivesReboot = true,
-            PersistsAcrossLaunches = true,
+            SurvivesReboot = durable,
+            PersistsAcrossLaunches = durable,
             ExactTiming = false,
             MaximumExecutionTime = _options.MaximumExecutionTime,
             SupportedConstraints = WorkConstraints.NetworkConnected | WorkConstraints.UnmeteredNetwork,
             Summary = _options.RunWhileInBackground
-                ? "Work runs inside the app process while it is running (including in the background) and resumes after restarts. Nothing runs while the app is closed."
-                : "Work runs inside the app process while it is in the foreground and resumes after restarts. Nothing runs while the app is in the background or closed.",
+                ? $"Work runs inside the app process while it is running (including in the background){restarts}. Nothing runs while the app is closed.{lost}"
+                : $"Work runs inside the app process while it is in the foreground{restarts}. Nothing runs while the app is in the background or closed.{lost}",
         };
     }
 
@@ -100,15 +106,20 @@ public sealed partial class InProcessBackgroundWorkScheduler : IBackgroundWorkSc
     /// <inheritdoc />
     public ValueTask<CapabilityStatus> GetStatusAsync(CancellationToken cancellationToken = default)
     {
-        var features = new List<string> { "persisted" };
+        var features = new List<string>();
+        if (Policy.PersistsAcrossLaunches)
+        {
+            features.Add("persisted");
+        }
+
         if (_options.RunWhileInBackground)
         {
             features.Add("runs-in-background");
         }
 
-        return ValueTask.FromResult(_store is Storage.InMemoryStateStore
-            ? CapabilityStatus.Available(Capability, _options.AdapterName, features) with { Reason = "No durable state store is registered; scheduled work is lost when the app exits." }
-            : CapabilityStatus.Available(Capability, _options.AdapterName, features));
+        return ValueTask.FromResult(Policy.PersistsAcrossLaunches
+            ? CapabilityStatus.Available(Capability, _options.AdapterName, features)
+            : CapabilityStatus.Available(Capability, _options.AdapterName, features) with { Reason = "No durable state store is registered; scheduled work is lost when the app exits." });
     }
 
     /// <inheritdoc />
@@ -303,7 +314,7 @@ public sealed partial class InProcessBackgroundWorkScheduler : IBackgroundWorkSc
             return true;
         }
 
-        if (!snapshot.IsOnline)
+        if (!snapshot.IsConnected)
         {
             return false;
         }
