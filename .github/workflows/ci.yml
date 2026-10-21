@@ -65,7 +65,8 @@ jobs:
       - run: dotnet workload install android ios maccatalyst maui
       - run: dotnet build src/BlazorNativeSdk.Android -c Release
       - run: dotnet build src/BlazorNativeSdk.iOS -c Release
-      - run: dotnet build src/BlazorNativeSdk.Maui -c Release -p:TargetFrameworks="net10.0-android;net10.0-ios;net10.0-maccatalyst"
+      # Off Windows the project already targets Android, iOS and Mac Catalyst only.
+      - run: dotnet build src/BlazorNativeSdk.Maui -c Release
 
   pack:
     name: Pack
