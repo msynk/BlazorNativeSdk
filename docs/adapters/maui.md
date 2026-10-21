@@ -49,8 +49,9 @@ builder.UseBlazorNativeSdk(
 return builder.Build();
 ```
 
-Add `<NativeActivationOutlet />` to the main layout. No code is needed in `MainActivity`, `AppDelegate`, `MainApplication` or
-the WinUI `App`. `configure` runs after the platform adapter is registered, so anything it registers overrides the defaults.
+Add `<NativeActivationOutlet />` to the main layout. No code is needed in `MainActivity`, `MainApplication` or the WinUI `App`.
+On iOS, export one method from `AppDelegate` so that background transfers that finish while the app is closed are delivered
+(MAUI has no lifecycle event for it; see [ios.md](ios.md#background-transfers)). `configure` runs after the platform adapter is registered, so anything it registers overrides the defaults.
 Calling `UseBlazorNativeSdk` again only adds configuration.
 
 ## What gets wired
@@ -188,7 +189,8 @@ Declare what the capabilities you use need; the platform documents list the deta
   `RECEIVE_BOOT_COMPLETED`, `SCHEDULE_EXACT_ALARM`, `ACCESS_NETWORK_STATE`, media permissions), camera `<queries>`, backup
   exclusions for secure storage, and on `MainActivity`: `LaunchMode = LaunchMode.SingleTop` plus `[IntentFilter]`s for your
   scheme and verified `https` host (`AutoVerify = true`, `assetlinks.json` on the server).
-* **iOS / Mac Catalyst** ([ios.md](ios.md#infoplist)): usage descriptions, `CFBundleURLTypes`,
+* **iOS / Mac Catalyst** ([ios.md](ios.md#infoplist)): the `application:handleEventsForBackgroundURLSession:completionHandler:`
+  export in `AppDelegate` for background transfers, usage descriptions, `CFBundleURLTypes`,
   `BGTaskSchedulerPermittedIdentifiers` (`{bundle id}.bns.refresh`, `{bundle id}.bns.processing`), `UIBackgroundModes`
   (`fetch`, `processing`), associated-domains and keychain entitlements; Mac Catalyst windows need the scene manifest above.
 * **Windows** ([windows.md](windows.md), [desktop.md](desktop.md)): unpackaged apps register schemes at runtime

@@ -146,19 +146,19 @@ Declare only what the capabilities you use need:
 | Lifecycle | Activity lifecycle callbacks, `onTrimMemory` | `BestEffort` | `Terminating` only when the last activity finishes. |
 | Connectivity | Essentials `Connectivity` + `ConnectivityManager` | `change-notification`, `metered`, `data-saver` | Needs `ACCESS_NETWORK_STATE`. |
 | Background work | AndroidX WorkManager (`UseWorkManager = false` → Core in-process, foreground only) | `persisted`, `runs-in-background`, `runs-after-termination`, `survives-reboot` | See below. |
-| Transfers | Core `HttpTransferService` | `resume-downloads`, `retry`, `persisted` | `ContinuesInBackground = false`; a DownloadManager/WorkManager transfer adapter is future work. |
+| Transfers | Core `HttpTransferService` driven by WorkManager | `resume-downloads`, `retry`, `persisted`, `continues-in-background`, `continues-after-termination` | WorkManager work `bns.transfers` keeps the queue running in the background and after the process was killed (see below). With `UseWorkManager = false`: in process, foreground only. |
 | Workflow checkpoints | Core, file state store in `{AppData}/bns-state` | – | |
 
 ## Background execution: guarantees and limits
 
 | | Guarantee | Limit |
 | --- | --- | --- |
-| WorkManager work | Persisted; runs in the background, after the app is closed and after reboots; constraints (network, unmetered, charging, battery/storage not low, idle) enforced by the OS. | Never exact (Doze, App Standby buckets, battery saver). Periodic ≥ 15 min (clamped). ~10 min per run, then the worker's token is cancelled. Exponential backoff ≥ 10 s; `MaxAttempts` caps retries. Input/output ≤ 10 KB. Nothing runs after a force-stop until the user opens the app. |
+| WorkManager work | Persisted; runs in the background, after the app is closed and after reboots; constraints (network, unmetered, charging, battery/storage not low, idle) enforced by the OS. | Never exact (Doze, App Standby buckets, battery saver). Periodic ≥ 15 min (clamped). ~10 min per run, then the worker's token is cancelled. Exponential backoff between 10 s and 5 h (clamped); `MaxAttempts` caps retries. Input/output ≤ 10 KB. Nothing runs after a force-stop until the user opens the app. |
 | Process start for work | The OS starts the process and `NativeSdkWorker` waits up to `WorkerStartupTimeout` (20 s) for the SDK to start, then retries. | The app must start the SDK at application creation (MAUI integration does). |
 | `WorkChanged` | Raised for schedule/cancel and for runs in a process where the scheduler exists. | Runs in other processes are visible through `GetWorkAsync`. |
 | Lifecycle lease | `RequestBackgroundTimeAsync` returns a `BestEffort` lease that never expires. | Android grants no background time: the process can be frozen or killed at any time in the background. Use WorkManager for work that must finish. |
 | Scheduled notifications | Persisted; survive process death, app updates and reboots (`RECEIVE_BOOT_COMPLETED`); repeats keep local time across DST/time-zone changes. | Exact only with `SCHEDULE_EXACT_ALARM` granted; otherwise the OS may defer delivery (up to ~1 h in Doze). Force-stop clears alarms until the next launch (re-armed when the SDK starts). |
-| HTTP transfers | Persisted, resumed on next launch. | Stop when the process is frozen or killed. |
+| HTTP transfers | Persisted. While any transfer is unfinished, one-time WorkManager work `bns.transfers` (network required) is kept scheduled; its runs keep the queue moving while the app is in the background and after the OS killed the process, and survive reboots. A run ends when every transfer finished (success) or the rest wait for the network or a later retry (WorkManager retries with exponential backoff from 30 s). | Each run is capped at about 10 minutes; the next run resumes downloads from the last byte (`Range`/`If-Range`), uploads restart from the beginning. Doze and App Standby defer runs. Nothing runs after a force-stop until the app is opened again. With `UseWorkManager = false` transfers only run while the app is in the foreground. |
 | Background notification actions | Delivered to activation handlers when the app is running. | If Android started the process only for the broadcast and no UI attaches, the activation is not persisted; use `OpensApp = true` for actions that must be handled. |
 
 ## Barcode scanning and Google Play services

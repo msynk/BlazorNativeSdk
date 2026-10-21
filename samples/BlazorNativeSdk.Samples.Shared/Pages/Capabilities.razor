@@ -8,7 +8,7 @@
     <code>ICapabilityRegistry.GetStatusAsync</code>.
 </p>
 
-<button class="bns-button" @onclick="LoadAsync">Refresh</button>
+<button class="bns-button" @onclick="LoadAsync" disabled="@(!RendererInfo.IsInteractive)">Refresh</button>
 
 @if (_statuses is null)
 {
@@ -38,7 +38,9 @@ else
 @code {
     private IReadOnlyList<CapabilityStatus>? _statuses;
 
-    protected override Task OnInitializedAsync() => LoadAsync();
+    // While Blazor Server prerenders no browser is attached and browser capabilities would all report Unknown, so the
+    // statuses are loaded once the page is interactive (always the case on WebAssembly and in BlazorWebView hosts).
+    protected override Task OnInitializedAsync() => RendererInfo.IsInteractive ? LoadAsync() : Task.CompletedTask;
 
     private async Task LoadAsync()
     {

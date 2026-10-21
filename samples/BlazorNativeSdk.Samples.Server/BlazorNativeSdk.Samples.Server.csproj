@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>$(BlazorNativeSdkTargetFramework)</TargetFramework>
+    <RootNamespace>BlazorNativeSdk.Samples.Server</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\BlazorNativeSdk.Browser\BlazorNativeSdk.Browser.csproj" />
+    <ProjectReference Include="..\BlazorNativeSdk.Samples.Shared\BlazorNativeSdk.Samples.Shared.csproj" />
+  </ItemGroup>
+
+</Project>

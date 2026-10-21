@@ -75,13 +75,25 @@ function canShareFiles() {
   }
 }
 
-async function getServiceWorkerRegistration() {
+async function getServiceWorkerRegistration(waitForActivationMs = 0) {
   if (!('serviceWorker' in navigator)) {
     return null;
   }
   try {
     const registration = await navigator.serviceWorker.getRegistration();
-    return registration?.active ? registration : null;
+    if (registration?.active) {
+      return registration;
+    }
+    if (!registration || waitForActivationMs <= 0 || !(registration.installing || registration.waiting)) {
+      return null;
+    }
+    // A worker registered on this visit is still installing: give it a moment to activate instead of falling back to
+    // page notifications (which have no action buttons).
+    const ready = await Promise.race([
+      navigator.serviceWorker.ready,
+      new Promise(resolve => setTimeout(() => resolve(null), waitForActivationMs)),
+    ]);
+    return ready?.active ? ready : null;
   } catch {
     return null;
   }
@@ -783,7 +795,7 @@ class Session {
             probe.notificationPermission = Notification.permission;
             probe.maxNotificationActions = typeof Notification.maxActions === 'number' ? Notification.maxActions : 0;
           }
-          probe.serviceWorkerRegistration = !!(await getServiceWorkerRegistration());
+          probe.serviceWorkerRegistration = !!(await getServiceWorkerRegistration(500));
           probe.badging = typeof navigator.setAppBadge === 'function';
           break;
         case 'secure-storage':
@@ -1424,7 +1436,7 @@ class Session {
         requireInteraction: !!request.requireInteraction,
       };
 
-      const registration = this.#options.useServiceWorkerNotifications ? await getServiceWorkerRegistration() : null;
+      const registration = this.#options.useServiceWorkerNotifications ? await getServiceWorkerRegistration(3000) : null;
       if (registration) {
         const maxActions = typeof Notification.maxActions === 'number' ? Notification.maxActions : 0;
         if (request.actions.length > 0 && maxActions > 0) {

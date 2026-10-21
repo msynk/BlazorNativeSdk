@@ -316,7 +316,7 @@ internal sealed partial class MauiWindowManager : IWindowManager, IDisposable, I
                 return Invalid($"The window has no root component: set {nameof(WindowOptions)}.{nameof(WindowOptions.RootComponent)} or {nameof(MauiNativeOptions)}.{nameof(MauiNativeOptions.DefaultRootComponent)}.");
             }
 
-            if (options.Route is { Length: > 0 } route && !BlazorWindowPage.IsAppRoute(route))
+            if (options.Route is { Length: > 0 } route && !MauiWindowRoutes.IsAppRoute(route))
             {
                 return Invalid($"The window route '{route}' must be an app-relative path such as '/settings'.");
             }

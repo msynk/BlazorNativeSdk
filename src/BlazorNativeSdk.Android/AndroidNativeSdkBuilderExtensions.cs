@@ -12,7 +12,8 @@ public static class AndroidNativeSdkBuilderExtensions
 {
     /// <summary>
     /// Adds the Android implementations of the device, lifecycle and background-work capabilities, a file-based state store
-    /// in <c>{AppData}/bns-state</c> and the HTTP transfer queue.
+    /// in <c>{AppData}/bns-state</c> and the HTTP transfer queue (kept running by WorkManager while transfers are pending,
+    /// unless <see cref="AndroidNativeOptions.UseWorkManager"/> is <see langword="false"/>).
     /// </summary>
     /// <remarks>
     /// <para>
@@ -77,8 +78,14 @@ public static class AndroidNativeSdkBuilderExtensions
             });
         }
 
-        // Android may suspend or kill the process in the background; transfers resume on the next launch.
-        builder.AddHttpTransfers(o => o.ContinuesInBackground = false);
+        // Android may suspend or kill the process in the background. With WorkManager, a worker keeps the queue running in
+        // the background and after the process was killed; without it, transfers resume on the next launch.
+        var useWorkManager = options.UseWorkManager;
+        builder.AddHttpTransfers(o =>
+        {
+            o.ContinuesInBackground = false;
+            o.UseBackgroundWork = useWorkManager;
+        });
         return builder;
     }
 }

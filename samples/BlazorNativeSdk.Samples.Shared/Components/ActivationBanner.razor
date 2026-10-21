@@ -1,0 +1,100 @@
+@* Shows the last activation (notification tap or action, deep link, forwarded launch, ...) that reached this UI. It only
+   observes: the subscription returns false, so the activation is still routed and navigated to as usual. Render it before
+   <NativeActivationOutlet /> so it is subscribed before activations buffered during a cold start are replayed. *@
+@implements IDisposable
+@inject IAppActivationService Activation
+
+@if (_last is { } activation)
+{
+    <div class="bns-activation" role="status" aria-live="polite">
+        <div>
+            <strong>@Title(activation)</strong>
+            @if (activation.IsColdStart)
+            {
+                <span class="bns-badge">cold start</span>
+            }
+            <div class="bns-reason">
+                @foreach (var detail in Details(activation))
+                {
+                    <span class="bns-activation-detail">@detail</span>
+                }
+            </div>
+        </div>
+        <button class="bns-button" @onclick="Dismiss" aria-label="Dismiss the activation details">Dismiss</button>
+    </div>
+}
+
+@code {
+    private AppActivation? _last;
+    private IDisposable? _subscription;
+
+    protected override void OnInitialized() => _subscription = Activation.Subscribe(OnActivationAsync);
+
+    private ValueTask<bool> OnActivationAsync(AppActivation activation, CancellationToken cancellationToken)
+    {
+        // A plain launch carries nothing worth showing.
+        var isPlainLaunch = activation.Kind == ActivationKind.Launch && activation.Uri is null && activation.Route is null && activation.Arguments.Count == 0;
+        if (!isPlainLaunch)
+        {
+            // Called by the activation pipeline, not on the renderer's thread.
+            _ = InvokeAsync(() =>
+            {
+                _last = activation;
+                StateHasChanged();
+            });
+        }
+
+        return ValueTask.FromResult(false);
+    }
+
+    private void Dismiss() => _last = null;
+
+    private static string Title(AppActivation activation) => activation.Kind switch
+    {
+        ActivationKind.Notification when activation.ActionId is { } action => $"Notification action \"{action}\"",
+        ActivationKind.Notification => "Notification tap",
+        ActivationKind.DeepLink => "Deep link",
+        ActivationKind.SecondaryInstance => "Forwarded launch",
+        _ => activation.Kind.ToString(),
+    };
+
+    private static IEnumerable<string> Details(AppActivation activation)
+    {
+        if (activation.NotificationId is { } id)
+        {
+            yield return $"notification {id}";
+        }
+
+        if (activation.UserText is { } text)
+        {
+            yield return $"reply \"{text}\"";
+        }
+
+        if (activation.Uri is { } uri)
+        {
+            yield return uri.ToString();
+        }
+
+        if (activation.Route is { } route)
+        {
+            yield return $"route {route}";
+        }
+
+        foreach (var (key, value) in activation.Data.OrderBy(pair => pair.Key, StringComparer.Ordinal))
+        {
+            yield return $"{key}={value}";
+        }
+
+        if (activation.Uri is null && activation.Arguments.Count > 0)
+        {
+            yield return $"arguments {string.Join(' ', activation.Arguments)}";
+        }
+
+        if (activation.Source is { } source)
+        {
+            yield return $"via {source}";
+        }
+    }
+
+    public void Dispose() => _subscription?.Dispose();
+}

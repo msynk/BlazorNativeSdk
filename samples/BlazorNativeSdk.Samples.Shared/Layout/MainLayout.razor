@@ -4,7 +4,14 @@
 <div class="bns-shell">
     <header class="bns-header">
         <span class="bns-brand">BlazorNativeSdk</span>
-        <span class="bns-host">@Registry.Host</span>
+        <span class="bns-host">
+            @Registry.Host
+            @if (!RendererInfo.IsInteractive)
+            {
+                @* Blazor Server prerendering: no browser is attached yet, so capabilities report Unknown / host.not-ready. *@
+                <text> · prerendered, connecting…</text>
+            }
+        </span>
     </header>
     <nav class="bns-nav" aria-label="Sections">
         <NavLink href="" Match="NavLinkMatch.All">Capabilities</NavLink>
@@ -13,6 +20,7 @@
         <NavLink href="desktop">Desktop</NavLink>
     </nav>
     <main class="bns-main">
+        <ActivationBanner />
         @Body
     </main>
 </div>

@@ -85,7 +85,12 @@ another user's session.
 `AppLifecycleBase` normalizes platform events to `Active`, `Inactive`, `Background` and `Terminating`. Transition
 handlers that run while the app moves to the background get the expiration token of a background-time lease.
 Background execution is described by data rather than promises: each scheduler and transfer adapter publishes a
-`BackgroundExecutionPolicy` or `TransferPolicy`. See [background-execution.md](background-execution.md).
+`BackgroundExecutionPolicy` or `TransferPolicy`. Transfers keep running where the OS allows it: Android hands the Core
+transfer queue to WorkManager, and iOS uses a background `URLSession`. See [background-execution.md](background-execution.md).
+
+Process-wide services (the in-process scheduler, the HTTP transfer queue) observe the connectivity and lifecycle of the
+process. On Blazor Server, where capability services belong to a circuit, the browser adapter registers server-side
+implementations under `NativeServiceKeys.Process` for them.
 
 ## Durable state
 
@@ -98,7 +103,9 @@ AOT-safe.
 
 * Core logic (routing, scheduling, transfers, placement validation, result semantics) is unit-tested with
   `FakeTimeProvider` and fake HTTP handlers.
-* `BlazorNativeSdk.Testing` provides fakes for app-level tests (bUnit) and `CapabilityContracts`, a set of behavioral
-  checks that every adapter's real implementation must pass.
-* Pure platform-mapping logic (error codes, permission states, symbologies) lives in small internal classes that are
-  tested without a device.
+* `BlazorNativeSdk.Testing` provides a fake for every capability for app-level tests (bUnit) and `CapabilityContracts`,
+  behavioral checks for real implementations. The Core, desktop, Windows, WPF and browser test suites run them against
+  the real stores, clipboard, IPC and capability statuses; the Android and iOS implementations need a device to run them.
+* Pure platform-mapping logic (error codes, permission states, symbologies, notification signing, retry decisions) lives
+  in small internal classes without platform types. The Android, iOS and MAUI test projects compile those source files
+  for `net10.0`, so they run on any CI runner without a device, emulator or workload.

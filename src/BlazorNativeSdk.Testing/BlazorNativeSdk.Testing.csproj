@@ -4,7 +4,7 @@
     <TargetFramework>$(BlazorNativeSdkTargetFramework)</TargetFramework>
     <RootNamespace>BlazorNativeSdk.Testing</RootNamespace>
     <IsAotCompatible>true</IsAotCompatible>
-    <Description>Test doubles for BlazorNativeSdk: scriptable fakes for every capability (camera, barcode, files, secure storage, share, biometrics, clipboard, permissions, notifications, lifecycle, connectivity, windows) plus framework-agnostic contract checks that adapter test suites run against real implementations.</Description>
+    <Description>Test doubles for BlazorNativeSdk: scriptable fakes for every capability (camera, barcode, files, app storage, secure storage, share, biometrics, clipboard, permissions, notifications, lifecycle, connectivity, background work, transfers, workflow checkpoints, windows, screens, tray, global shortcuts, menus, shell file operations, IPC, single instance, protocol registration) plus framework-agnostic contract checks that adapter test suites run against real implementations.</Description>
   </PropertyGroup>
 
   <ItemGroup>

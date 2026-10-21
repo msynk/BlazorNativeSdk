@@ -100,6 +100,14 @@ public static class BrowserNativeSdkBuilderExtensions
             services.Replace(ServiceDescriptor.Scoped<IActivationPublisher>(static sp => sp.GetRequiredService<ActivationService>()));
             services.Replace(ServiceDescriptor.Scoped<INavigationOutletRegistry>(static sp => sp.GetRequiredService<ActivationService>()));
             builder.AddCapability<IAppActivationService>(NativeCapabilities.DeepLinks, static sp => sp.GetRequiredService<ActivationService>(), ServiceLifetime.Scoped);
+
+            // Connectivity and lifecycle are per circuit (the user's browser). Process-wide services that run on the server,
+            // such as the in-process work scheduler and HTTP transfers, observe the server process instead.
+            if (!OperatingSystem.IsBrowser())
+            {
+                services.TryAddKeyedSingleton<IConnectivityService, NetworkInformationConnectivityService>(NativeServiceKeys.Process);
+                services.TryAddKeyedSingleton<IAppLifecycle, ManualAppLifecycle>(NativeServiceKeys.Process);
+            }
         }
 
         return builder;

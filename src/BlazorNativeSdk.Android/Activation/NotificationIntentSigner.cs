@@ -1,5 +1,4 @@
 using System.Security.Cryptography;
-using System.Text;
 using Android.Content;
 
 namespace BlazorNativeSdk.AndroidPlatform;
@@ -20,32 +19,14 @@ internal static class NotificationIntentSigner
 
     /// <summary>Adds the token extra to a notification intent.</summary>
     public static void Sign(Intent intent, string notificationId, string? actionId, string? route, string? data) =>
-        intent.PutExtra(TokenExtra, ComputeToken(GetKey(), notificationId, actionId, route, data));
+        intent.PutExtra(TokenExtra, NotificationIntentToken.Compute(GetKey(), notificationId, actionId, route, data));
 
     /// <summary>Verifies the token extra of a notification intent.</summary>
     public static bool Verify(Intent intent, string? notificationId, string? actionId, string? route, string? data)
     {
         var token = intent.GetStringExtra(TokenExtra);
-        return notificationId is not null && token is not null && VerifyToken(GetKey(), token, notificationId, actionId, route, data);
+        return notificationId is not null && token is not null && NotificationIntentToken.Verify(GetKey(), token, notificationId, actionId, route, data);
     }
-
-    /// <summary>Computes the token. Pure.</summary>
-    public static string ComputeToken(byte[] key, string notificationId, string? actionId, string? route, string? data)
-    {
-        var payload = Encoding.UTF8.GetBytes(string.Join('\u001F', Field(notificationId), Field(actionId), Field(route), Field(data)));
-        return Convert.ToBase64String(HMACSHA256.HashData(key, payload));
-    }
-
-    /// <summary>Verifies a token in constant time. Pure.</summary>
-    public static bool VerifyToken(byte[] key, string token, string notificationId, string? actionId, string? route, string? data)
-    {
-        var expected = Encoding.ASCII.GetBytes(ComputeToken(key, notificationId, actionId, route, data));
-        var actual = Encoding.ASCII.GetBytes(token);
-        return CryptographicOperations.FixedTimeEquals(expected, actual);
-    }
-
-    // Length-prefixed so field boundaries cannot be shifted; null and empty are distinct.
-    private static string Field(string? value) => value is null ? "-" : value.Length.ToString(System.Globalization.CultureInfo.InvariantCulture) + ":" + value;
 
     private static byte[] GetKey()
     {
@@ -58,24 +39,13 @@ internal static class NotificationIntentSigner
 
             var preferences = AndroidContext.App.GetSharedPreferences(PreferencesName, FileCreationMode.Private)
                 ?? throw new InvalidOperationException("SharedPreferences are not available.");
-            var stored = preferences.GetString(KeyName, null);
-            if (stored is not null)
+            if (NotificationIntentToken.TryDecodeKey(preferences.GetString(KeyName, null)) is { } stored)
             {
-                try
-                {
-                    var decoded = Convert.FromBase64String(stored);
-                    if (decoded.Length == 32)
-                    {
-                        return s_key = decoded;
-                    }
-                }
-                catch (FormatException)
-                {
-                    // Regenerate below; previously posted notifications then fail verification and are ignored.
-                }
+                return s_key = stored;
             }
 
-            var key = RandomNumberGenerator.GetBytes(32);
+            // Missing or corrupt: regenerate; previously posted notifications then fail verification and are ignored.
+            var key = RandomNumberGenerator.GetBytes(NotificationIntentToken.KeyLength);
             using var editor = preferences.Edit();
             editor?.PutString(KeyName, Convert.ToBase64String(key))?.Commit();
             return s_key = key;

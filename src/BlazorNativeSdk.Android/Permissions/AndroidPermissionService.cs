@@ -91,7 +91,7 @@ public sealed partial class AndroidPermissionService : IPermissionService
                 return PermissionStatus.NotRequired;
 
             case AndroidPermissionKind.LegacyNotifications:
-                return AreNotificationsEnabled() ? PermissionStatus.NotRequired : PermissionStatus.Denied;
+                return AndroidPermissionMapper.MapLegacyNotifications(AreNotificationsEnabled());
 
             case AndroidPermissionKind.ExactAlarms:
                 return CheckExactAlarms(capability);
@@ -100,7 +100,7 @@ public sealed partial class AndroidPermissionService : IPermissionService
                 var runtime = new AndroidRuntimePermission(plan.AndroidPermissions, plan.PartialAccessPermission);
                 if (runtime.FindUndeclared() is { } undeclared)
                 {
-                    return EssentialsErrors.MissingDeclaration(capability, undeclared);
+                    return AndroidPermissionErrors.MissingDeclaration(capability, undeclared);
                 }
 
                 var status = AndroidPermissionMapper.Map(await runtime.CheckStatusAsync().ConfigureAwait(false));
@@ -123,7 +123,7 @@ public sealed partial class AndroidPermissionService : IPermissionService
 
             case AndroidPermissionKind.LegacyNotifications:
                 // No runtime prompt exists below Android 13; the user must re-enable notifications in settings.
-                return AreNotificationsEnabled() ? PermissionStatus.NotRequired : PermissionStatus.Denied;
+                return AndroidPermissionMapper.MapLegacyNotifications(AreNotificationsEnabled());
 
             case AndroidPermissionKind.ExactAlarms:
                 return await RequestExactAlarmsAsync(capability, cancellationToken).ConfigureAwait(false);
@@ -132,7 +132,7 @@ public sealed partial class AndroidPermissionService : IPermissionService
                 var runtime = new AndroidRuntimePermission(plan.AndroidPermissions, plan.PartialAccessPermission);
                 if (runtime.FindUndeclared() is { } undeclared)
                 {
-                    return EssentialsErrors.MissingDeclaration(capability, undeclared);
+                    return AndroidPermissionErrors.MissingDeclaration(capability, undeclared);
                 }
 
                 if (AndroidContext.CurrentActivity is null)
@@ -218,15 +218,11 @@ public sealed partial class AndroidPermissionService : IPermissionService
         if (!MauiPermissions.IsDeclaredInManifest(AndroidPermissionCatalog.ScheduleExactAlarm) &&
             !MauiPermissions.IsDeclaredInManifest(AndroidPermissionCatalog.UseExactAlarm))
         {
-            return EssentialsErrors.MissingDeclaration(capability, AndroidPermissionCatalog.ScheduleExactAlarm);
+            return AndroidPermissionErrors.MissingDeclaration(capability, AndroidPermissionCatalog.ScheduleExactAlarm);
         }
 
-        if (CanScheduleExactAlarms())
-        {
-            return PermissionStatus.Granted;
-        }
-
-        return PermissionRequestTracker.WasRequested(s_exactAlarmRequestKeys) ? PermissionStatus.Denied : PermissionStatus.NotDetermined;
+        var canSchedule = CanScheduleExactAlarms();
+        return AndroidPermissionMapper.MapExactAlarms(canSchedule, !canSchedule && PermissionRequestTracker.WasRequested(s_exactAlarmRequestKeys));
     }
 
     private async ValueTask<NativeResult<PermissionStatus>> RequestExactAlarmsAsync(CapabilityId capability, CancellationToken cancellationToken)
@@ -250,7 +246,7 @@ public sealed partial class AndroidPermissionService : IPermissionService
             return EssentialsErrors.Map(capability, ex);
         }
 
-        return CanScheduleExactAlarms() ? PermissionStatus.Granted : PermissionStatus.Denied;
+        return AndroidPermissionMapper.MapExactAlarms(CanScheduleExactAlarms(), requestedBefore: true);
     }
 
     private static NativeError UnsupportedPermission(CapabilityId capability, NativePermission permission) =>

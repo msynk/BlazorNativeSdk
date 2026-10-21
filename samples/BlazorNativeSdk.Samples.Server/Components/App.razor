@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <base href="/" />
+    <link rel="stylesheet" href="@Assets["_content/BlazorNativeSdk.Samples.Shared/samples.css"]" />
+    <ImportMap />
+    <HeadOutlet @rendermode="InteractiveServer" />
+</head>
+
+<body>
+    @* Prerendered for a fast first paint. Until the circuit connects no browser is attached: capabilities report Unknown
+       and operations return Unavailable / host.not-ready, so the shared pages load browser state once interactive. *@
+    <SampleRoot @rendermode="InteractiveServer" />
+
+    <script src="@Assets["_framework/blazor.web.js"]"></script>
+    <script>
+        // Notification action buttons and taps after the page was closed need a service worker (see service-worker.js).
+        // The script URL and scope are relative to <base href>, so the worker controls exactly the app's base path. Without
+        // it notifications still work, just without the 'actions' feature.
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('service-worker.js', { scope: './' })
+                .catch(error => console.warn('BlazorNativeSdk sample: service worker registration failed.', error));
+        }
+    </script>
+</body>
+
+</html>

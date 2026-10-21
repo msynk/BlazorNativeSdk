@@ -21,8 +21,35 @@ public static class SampleServices
             o.DeepLinks.Hosts.Add("samples.blazornativesdk.dev");
         });
         sdk.AddBackgroundWorker<DemoSyncWorker>(DemoSyncWorker.Name);
+        sdk.AddActivationHandler<ArchiveOrderHandler>();
         sdk.Services.AddSingleton<ActivityLog>();
         return sdk;
+    }
+}
+
+/// <summary>
+/// Handles the "Archive" button of the sample's order notification instead of navigating to the notification route.
+/// Handlers registered with <c>AddActivationHandler</c> run before any component and also receive background activations
+/// (Android and iOS deliver <see cref="Devices.NotificationAction.OpensApp"/> = <see langword="false"/> actions to a
+/// process that may never show UI). Browsers always focus or open the app for an action, because .NET runs in the page.
+/// </summary>
+public sealed class ArchiveOrderHandler(ActivityLog log) : IActivationHandler
+{
+    /// <summary>The id of the action handled here.</summary>
+    public const string ActionId = "archive";
+
+    /// <inheritdoc />
+    public ValueTask<bool> HandleAsync(AppActivation activation, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(activation);
+        if (activation.Kind != ActivationKind.Notification || activation.ActionId != ActionId)
+        {
+            return ValueTask.FromResult(false); // Not ours: other handlers, then route navigation, take over.
+        }
+
+        var order = activation.Data.TryGetValue("orderId", out var id) ? id : "?";
+        log.Add($"Order #{order} archived from its notification{(activation.IsBackground ? " in the background" : string.Empty)}, without navigating.");
+        return ValueTask.FromResult(true); // Handled: the notification route is not navigated to.
     }
 }
 

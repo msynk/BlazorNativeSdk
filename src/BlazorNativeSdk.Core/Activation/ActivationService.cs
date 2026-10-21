@@ -585,7 +585,7 @@ public sealed partial class ActivationService : IAppActivationService, IActivati
     [LoggerMessage(EventId = 1202, Level = LogLevel.Warning, Message = "Activation {Activation} dropped: the buffer is full.")]
     private static partial void LogDropped(ILogger logger, AppActivation activation);
 
-    [LoggerMessage(EventId = 1203, Level = LogLevel.Debug, Message = "Activation {Activation} handled by a subscriber.")]
+    [LoggerMessage(EventId = 1203, Level = LogLevel.Debug, Message = "Activation {Activation} was handled by an activation handler or subscriber.")]
     private static partial void LogHandled(ILogger logger, AppActivation activation);
 
     [LoggerMessage(EventId = 1204, Level = LogLevel.Error, Message = "An activation handler failed for {Activation}.")]

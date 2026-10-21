@@ -78,6 +78,11 @@ Cancelling the caller's token throws `OperationCanceledException` and closes any
 | Listener startup | SDK startup task (or `BrowserNativeSdkInitializer`) | `BrowserNativeSdkInitializer` per circuit; lifecycle/connectivity also start lazily on first use |
 | `INativeStateStore` | `localStorage` | unchanged (server-side store; the SDK's own state belongs to the server process) |
 | Files | Blob stays in the browser until read | content is streamed over the circuit when read (`OpenReadAsync`), so mind SignalR bandwidth and limits |
+| Background work, transfers | in-process scheduler while the page is open; transfers `Unsupported` | in-process scheduler and `HttpTransferService` on the server, one per process. They observe the **server's** connectivity and lifecycle, which `AddBrowser()` registers under `NativeServiceKeys.Process`, not a circuit's browser |
+| `IActivationHandler` | resolved from a new scope | resolved from a new scope, **not** the circuit's: they cannot use per-circuit services (JS interop, the circuit's `NavigationManager`). Subscribe through `IAppActivationService` in a component for circuit-specific handling |
+
+`BrowserNativeSdkInitializer` can live in any interactive root, for example a server-only component that wraps a shared
+`Routes` (see `samples/BlazorNativeSdk.Samples.Server`).
 
 During prerendering or static rendering no browser is attached: statuses are `Unknown` and operations return
 `Unavailable` / `host.not-ready`; the module import is retried on the next interactive call. Call capabilities from
@@ -98,6 +103,13 @@ On `notificationclick` the snippet ignores notifications not created by the SDK,
 `{ type: 'bns-notification-click', id, action, route, data }` to it; with no window open it opens the notification route
 (same-origin, inside the worker scope only) with the tap encoded in `?bns-notification-click=`, which the adapter
 publishes as a cold-start `Notification` activation and then removes from the address bar.
+
+* Register the worker before Blazor starts (see `samples/BlazorNativeSdk.Samples.Wasm/wwwroot/index.html`). On the first
+  visit the worker may still be installing; the adapter waits up to 3 seconds for it to activate before showing a
+  notification, and up to half a second when it reports status.
+* Browsers have no equivalent of `NotificationAction.OpensApp = false` or `AcceptsText`: every action click focuses or
+  opens a window of the app, and actions never collect text. The `actions` feature is reported only when a service worker
+  is active and `Notification.maxActions` is greater than zero (Chromium shows at most two).
 
 ## Guarantees and limitations
 

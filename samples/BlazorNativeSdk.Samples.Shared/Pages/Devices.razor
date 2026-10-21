@@ -67,7 +67,24 @@
     <h2>Notifications</h2>
     <button class="bns-button" @onclick="NotifyAsync">Notify now</button>
     <button class="bns-button" @onclick="ScheduleAsync">Notify in 10 seconds</button>
-    <p>Tapping the notification opens <code>/orders/42</code> through the activation pipeline, even from a cold start.</p>
+    <p>
+        Tapping the notification opens <code>/orders/42</code> through the activation pipeline, even from a cold start (close
+        the app first, then tap). The banner at the top shows what arrived.
+    </p>
+    <CapabilityView @ref="_actionsView" Capability="NativeCapabilities.Notifications" Feature="@NotificationFeatures.Actions">
+        <Available>
+            <p class="bns-reason">
+                This host shows action buttons. <strong>Archive</strong> is handled by an <code>IActivationHandler</code> instead
+                of navigating (see the activity list on the Lifecycle page); <strong>Reply</strong> opens the order like a tap.
+            </p>
+        </Available>
+        <NotAvailable Context="status">
+            <p class="bns-reason">
+                Notifications are shown without action buttons here.
+                @(status.Reason ?? "In a browser, action buttons need an active service worker that imports blazor-native-sdk-sw.js.")
+            </p>
+        </NotAvailable>
+    </CapabilityView>
     <ResultView Outcome="_notifications" />
 </section>
 
@@ -89,6 +106,7 @@
     private string _text = "Hello from BlazorNativeSdk";
     private Outcome? _camera, _barcode, _files, _share, _security, _notifications, _permissions;
     private NativeFile? _lastFile;
+    private CapabilityView? _actionsView;
 
     private async Task CapturePhotoAsync()
     {
@@ -180,6 +198,11 @@
     private async Task NotifyAsync()
     {
         var permission = await Notifications.RequestPermissionAsync();
+        if (_actionsView is not null)
+        {
+            await _actionsView.RefreshAsync(); // The status (and its features) may have changed with the permission.
+        }
+
         if (!permission.IsSuccess)
         {
             _notifications = Outcome.From(permission, _ => string.Empty);
@@ -197,14 +220,20 @@
         _notifications = Outcome.From(result, "Scheduled for delivery in 10 seconds. Try closing the app.");
     }
 
+    // Hosts without action buttons show the notification without them (check NotificationFeatures.Actions). Browsers show
+    // at most Notification.maxActions buttons (two in Chrome), so the most important action comes first.
     private static LocalNotification OrderNotification() => new()
     {
         Id = "order-42",
         Title = "Order #42 shipped",
         Body = "Tap to see the tracking details.",
         Route = "/orders/42",
-        Data = new Dictionary<string, string> { ["source"] = "devices-page" },
-        Actions = [new NotificationAction("reply", "Reply") { AcceptsText = true, TextPlaceholder = "Message the courier" }],
+        Data = new Dictionary<string, string> { ["source"] = "devices-page", ["orderId"] = "42" },
+        Actions =
+        [
+            new NotificationAction(ArchiveOrderHandler.ActionId, "Archive") { OpensApp = false },
+            new NotificationAction("reply", "Reply") { AcceptsText = true, TextPlaceholder = "Message the courier" },
+        ],
     };
 
     private async Task CheckPermissionAsync(NativePermission permission)

@@ -114,6 +114,15 @@ public static class NativeSdkServiceCollectionExtensions
             builder.Services.Configure(configure);
         }
 
+        // The scheduler is process-wide: it observes the process's connectivity and lifecycle (see NativeServiceKeys.Process).
+        builder.Services.Replace(ServiceDescriptor.Singleton(static sp => new InProcessBackgroundWorkScheduler(
+            sp,
+            sp.GetRequiredService<INativeStateStore>(),
+            NativeServiceKeys.ProcessConnectivity(sp),
+            NativeServiceKeys.ProcessLifecycle(sp),
+            sp.GetRequiredService<IOptions<InProcessWorkOptions>>(),
+            sp.GetRequiredService<ILogger<InProcessBackgroundWorkScheduler>>(),
+            sp.GetService<TimeProvider>())));
         builder.AddCapability<IBackgroundWorkScheduler, InProcessBackgroundWorkScheduler>(NativeCapabilities.BackgroundWork);
         builder.Services.TryAddEnumerable(ServiceDescriptor.Singleton<INativeSdkStartupTask, InProcessBackgroundWorkScheduler>(
             static sp => sp.GetRequiredService<InProcessBackgroundWorkScheduler>()));
@@ -130,9 +139,21 @@ public static class NativeSdkServiceCollectionExtensions
             builder.Services.Configure(configure);
         }
 
+        // The queue is process-wide: it observes the process's connectivity (see NativeServiceKeys.Process).
+        builder.Services.Replace(ServiceDescriptor.Singleton(static sp => new HttpTransferService(
+            sp,
+            sp.GetRequiredService<INativeStateStore>(),
+            sp.GetRequiredService<IAppStorage>(),
+            NativeServiceKeys.ProcessConnectivity(sp),
+            sp.GetRequiredService<IOptions<HttpTransferOptions>>(),
+            sp.GetRequiredService<ILogger<HttpTransferService>>(),
+            sp.GetService<TimeProvider>())));
         builder.AddCapability<ITransferService, HttpTransferService>(NativeCapabilities.Transfers);
         builder.Services.TryAddEnumerable(ServiceDescriptor.Singleton<INativeSdkStartupTask, HttpTransferService>(
             static sp => sp.GetRequiredService<HttpTransferService>()));
+
+        // Scheduled only with HttpTransferOptions.UseBackgroundWork; registered always so pending work finds its worker.
+        builder.Services.TryAddKeyedTransient<IBackgroundWorker, HttpTransferBackgroundWorker>(HttpTransferService.BackgroundWorkName);
         return builder;
     }
 

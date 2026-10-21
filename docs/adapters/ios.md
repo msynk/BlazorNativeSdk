@@ -77,7 +77,7 @@ Mac Catalyst (otherwise `errSecMissingEntitlement` -> `MissingDeclaration`); opt
 | --- | --- | --- | --- |
 | Permissions | Yes | Yes | camera, microphone, photos (Limited = selected photos), notifications (provisional = Limited), biometrics (Denied when Face ID was refused, else NotRequired). Storage, exact alarms and clipboard read are NotRequired. `OpenAppSettingsAsync` opens the app's Settings page. |
 | Camera | Capture + library | Library only | Essentials `MediaPicker`; mixed photo+video picking uses PHPicker. Camera choice and max duration are not honored by the system UI. |
-| Barcode | Live + image | Live + image | Live: `AVCaptureMetadataOutput` full-screen scanner (close button, optional prompt, timeout). Image: Vision with pixel bounds. VisionKit `DataScannerViewController` is Swift-only and has no .NET binding. UPC-A is reported as EAN-13 by Apple and normalized when UPC-A is requested. |
+| Barcode | Live + image | Live + image | Live: `AVCaptureMetadataOutput` full-screen scanner (close button, optional prompt, timeout). Image: Vision with pixel bounds. VisionKit `DataScannerViewController` is Swift-only and has no .NET binding. UPC-A is reported as EAN-13 by Apple and normalized when UPC-A is requested. Live scanning recognizes Codabar from iOS / Mac Catalyst 15.4 (image detection on every supported version). |
 | Files | Yes | Yes | Open (multiple), save via export picker (`ExportSheet` on iOS, `SaveDialog` on Mac), folder picker with security-scoped access held for the process lifetime. |
 | App storage | Yes | Yes | AppData = `Library`, Cache = `Library/Caches`, Temp = `tmp`, Documents = `Documents`; Downloads is Unsupported. |
 | Secure storage | `HardwareBacked` | `OperatingSystem` | Keychain generic passwords, `AfterFirstUnlockThisDeviceOnly` by default. Simulator reports `OperatingSystem`. Items survive app deletion on iOS. |
@@ -89,7 +89,7 @@ Mac Catalyst (otherwise `errSecMissingEntitlement` -> `MissingDeclaration`); opt
 | Lifecycle | Yes | Yes | `OsGranted` background time via `BeginBackgroundTask`. |
 | Connectivity | Yes | Yes | `NWPathMonitor`; metered = expensive, data saver = Low Data Mode. |
 | Background work | BGTaskScheduler + in-process | In-process | See below. |
-| Transfers | In-process | In-process | Core `HttpTransferService`; continues in the background on Mac only. A background `NSURLSession` adapter is future work. |
+| Transfers | Background `URLSession` | In-process | iOS: `AppleBackgroundTransferService`, performed by the system while the app is suspended or closed (see *Background transfers*). Mac Catalyst: Core `HttpTransferService`, which keeps running because Mac apps are not suspended. |
 
 ## Background execution: guarantees and limits
 
@@ -109,3 +109,38 @@ period. In the simulator `BGTaskScheduler` is unavailable; status reports it.
 
 `IAppLifecycle.RequestBackgroundTimeAsync` wraps `BeginBackgroundTask` (usually up to about 30 s; `ExpirationToken`
 fires shortly before iOS revokes the time). Lifecycle transition handlers for backgrounding run inside such a lease.
+
+## Background transfers
+
+On iOS, `ITransferService` is `AppleBackgroundTransferService`: downloads and uploads run in a background `URLSession`
+(identifier `{CFBundleIdentifier}.bns.transfers`, or `AppleNativeOptions.BackgroundTransferSessionIdentifier`) that the
+system performs in its own process. Set `AppleNativeOptions.UseBackgroundUrlSession = false` to use the in-process Core
+queue instead.
+
+When transfers finish while the app is suspended or closed, iOS relaunches it in the background and calls
+`application:handleEventsForBackgroundURLSession:completionHandler:`. .NET MAUI has no lifecycle event for it, so export
+it from the app delegate:
+
+```csharp
+// Platforms/iOS/AppDelegate.cs
+[Export("application:handleEventsForBackgroundURLSession:completionHandler:")]
+public void HandleEventsForBackgroundUrl(UIApplication application, string sessionIdentifier, Action completionHandler)
+{
+    if (!AppleBackgroundTransfers.HandleEventsForBackgroundUrl(sessionIdentifier, completionHandler))
+    {
+        completionHandler();
+    }
+}
+```
+
+The SDK processes and persists the session's events, then calls the completion handler so iOS can suspend the app again.
+Without the method, events are still processed when the app runs, but iOS is never told the work is done.
+
+| | Guarantee | Limit |
+| --- | --- | --- |
+| Execution | Transfers continue while the app is suspended or terminated; results are delivered on the next (background) launch. | The system decides when transfers run (Low Power Mode, network quality, thermal state). When the user force-quits the app, iOS cancels its transfers; they are retried on the next launch. |
+| Retries | Network loss is handled by the system. HTTP 408/429/5xx and transient network errors are retried with exponential backoff up to `MaxRetries`, honoring `Retry-After`, through new tasks with an `earliestBeginDate`, so retries happen while the app is suspended too. | Other HTTP errors fail the transfer; `RetryAsync` starts it again. |
+| Downloads | Resume from the system's resume data when the server supports it. The file is moved to `DestinationPath` as soon as the system delivers it; error responses never replace the destination. | |
+| Uploads | Multipart bodies are written to `Library/bns-transfers` first, because background sessions upload from files only. | Interrupted uploads start again from the beginning. |
+| `RequireUnmeteredNetwork` | Maps to `allowsExpensiveNetworkAccess = false` (no cellular or personal hotspot). | |
+| Progress | `TransferChanged` while the app runs (at most every 250 ms per transfer). | No progress events while the app is suspended. |

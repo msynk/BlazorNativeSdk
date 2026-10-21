@@ -82,9 +82,23 @@ wrap it (call `RunDueWorkAsync(isOsInitiated: true, token)` when the OS wakes th
 `BGTaskScheduler`) or replace it with a native scheduler (Android `WorkManager`). Always publish an accurate
 `BackgroundExecutionPolicy`.
 
+For transfers, either use the Core `HttpTransferService` (set `HttpTransferOptions.UseBackgroundWork` when the platform's
+scheduler runs work in the background, as the Android adapter does) or implement `ITransferService` over a native
+facility (the iOS adapter's background `URLSession`). Publish an accurate `TransferPolicy`.
+
+Process-wide services must not depend on per-session services. On Blazor Server capability services are scoped per
+circuit, so Core's process-wide services resolve `IConnectivityService` and `IAppLifecycle` registered under
+`NativeServiceKeys.Process` first; register those keyed services when your host scopes the regular ones.
+
 ## Testing
 
-- Pure mapping logic (error-code mapping, option translation) lives in small internal static classes so it can be unit
-  tested without a device.
-- `BlazorNativeSdk.Testing` provides fakes for every capability and contract checks (`SecureStorageContract`,
-  `StateStoreContract`, ...) that adapter test suites run against real implementations.
+- Pure mapping logic (error-code mapping, option translation) lives in small internal static classes that use no platform
+  types (mirror platform constants as private constants with a comment naming them), so it can be unit tested without a
+  device. Platform-specific adapters (`net10.0-android`, `net10.0-ios`) cannot be referenced from a `net10.0` test project:
+  their test projects compile the pure files directly (`<Compile Include="..\..\src\...\XMapping.cs" Link="Linked\XMapping.cs" />`).
+- `BlazorNativeSdk.Testing` provides fakes for every capability (`AddFakes()`; deep links use Core's in-process
+  activation pipeline) and contract checks in `CapabilityContracts` that adapter test suites run against real
+  implementations: `VerifySecureStorageAsync`, `VerifyStateStoreAsync`, `VerifyClipboardAsync`, `VerifyAppStorageAsync`,
+  `VerifyWorkflowCheckpointStoreAsync`, `VerifyIpcAsync` and `VerifyStatusAsync` (run it for every capability the adapter
+  registers). A violation throws `ContractViolationException`. Contracts use unique keys and clean up after themselves, so
+  they can run against real stores; `VerifySecureStorageAsync` calls `ClearAsync`, so point it at a test-only store.

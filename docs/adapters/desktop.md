@@ -177,4 +177,5 @@ argument, and add them to `DeepLinkOptions.Schemes`.
   "Put Back" information.
 - Linux unregistration deletes the desktop entry; `xdg-mime` has no "unset", so `mimeapps.list` keeps a stale default
   that desktops ignore.
-- macOS and Linux code paths are unit-tested where they are pure, but the automated suite currently runs on Windows.
+- CI runs the Desktop test suite on Windows, macOS and Linux; tests of platform-specific code (Unix socket hardening,
+  FreeDesktop trash, macOS protocol handling) only assert on their own platform.

@@ -12,7 +12,8 @@ public static class AppleNativeSdkBuilderExtensions
 {
     /// <summary>
     /// Adds the iOS / Mac Catalyst adapter: permissions, camera, barcode, file pickers, app storage, Keychain secure storage,
-    /// share, clipboard, biometrics, notifications, lifecycle, connectivity, background work (BGTaskScheduler) and HTTP transfers,
+    /// share, clipboard, biometrics, notifications, lifecycle, connectivity, background work (BGTaskScheduler) and transfers (a background
+    /// URLSession on iOS, the in-process HTTP queue on Mac Catalyst),
     /// plus a file-based state store in <c>Library/bns-state</c>.
     /// </summary>
     /// <remarks>
@@ -58,9 +59,19 @@ public static class AppleNativeSdkBuilderExtensions
         });
         builder.AddCapability<IBackgroundWorkScheduler, AppleBackgroundWorkScheduler>(NativeCapabilities.BackgroundWork);
 
-        // Transfers run in process. iOS suspends the app shortly after it moves to the background (a background URLSession
-        // adapter is future work); Mac Catalyst apps keep running.
-        builder.AddHttpTransfers(o => o.ContinuesInBackground = OperatingSystem.IsMacCatalyst());
+        // iOS suspends the app shortly after it moves to the background, so transfers run in a background URLSession that the
+        // system performs while the app is suspended or closed. Mac Catalyst apps keep running: the in-process queue suffices.
+        if (options.UseBackgroundUrlSession && !OperatingSystem.IsMacCatalyst())
+        {
+            builder.AddCapability<ITransferService, AppleBackgroundTransferService>(NativeCapabilities.Transfers);
+            builder.Services.TryAddEnumerable(ServiceDescriptor.Singleton<INativeSdkStartupTask, AppleBackgroundTransferService>(
+                static sp => sp.GetRequiredService<AppleBackgroundTransferService>()));
+        }
+        else
+        {
+            builder.AddHttpTransfers(o => o.ContinuesInBackground = OperatingSystem.IsMacCatalyst());
+        }
+
         return builder;
     }
 

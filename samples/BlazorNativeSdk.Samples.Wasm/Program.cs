@@ -8,7 +8,9 @@ builder.RootComponents.Add<Routes>("#app");
 builder.RootComponents.Add<HeadOutlet>("head::after");
 
 builder.Services.AddBlazorNativeSdk(sdk => sdk
-    .AddBrowser()
+    // Notifications go through the service worker registered in index.html (wwwroot/service-worker.js) when it is active:
+    // that enables action buttons and routes taps after the page was closed (?bns-notification-click=). This is the default.
+    .AddBrowser(o => o.UseServiceWorkerNotifications = true)
     .AddInProcessBackgroundWork(o => o.RunWhileInBackground = false)
     .AddSampleConfiguration()
     .ConfigureDeepLinks(links => links.Schemes.Add("web+" + SampleServices.Scheme)));

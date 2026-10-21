@@ -41,7 +41,7 @@ public class BlazorWindowPage : ContentPage
         else if (options.DefaultRootComponent is { } defaultComponent)
         {
             var route = string.IsNullOrWhiteSpace(windowOptions.Route) ? "/" : windowOptions.Route;
-            if (!IsAppRoute(route))
+            if (!MauiWindowRoutes.IsAppRoute(route))
             {
                 throw new ArgumentException($"The window route '{route}' must be an app-relative path such as '/settings'.", nameof(windowOptions));
             }
@@ -78,14 +78,6 @@ public class BlazorWindowPage : ContentPage
 
     /// <summary>The web view that renders the window's Blazor content.</summary>
     public BlazorWebView BlazorWebView { get; }
-
-    /// <summary>Returns whether <paramref name="route"/> is an app-relative path (no scheme, not protocol-relative).</summary>
-    internal static bool IsAppRoute(string route) =>
-        route.StartsWith('/') &&
-        !route.StartsWith("//", StringComparison.Ordinal) &&
-        !route.StartsWith("/\\", StringComparison.Ordinal) &&
-        !route.Contains("://", StringComparison.Ordinal) &&
-        !route.Any(char.IsControl);
 
     private static RootComponent CreateRoot(
         string windowId,

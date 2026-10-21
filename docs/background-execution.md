@@ -32,11 +32,22 @@ Rules for workers:
 
 ## Transfers (`ITransferService`)
 
-The Core `HttpTransferService` persists every transfer, waits for connectivity (or an unmetered network when
-requested), retries transient failures with exponential backoff and honors `Retry-After`. It resumes downloads from the
-last received byte with `Range` and `If-Range` requests. Transfers run only while the app process runs.
-Platform-native background transfer adapters (Android `DownloadManager`, iOS background `NSURLSession`) can replace it
-without changing app code. They are on the roadmap.
+Every transfer adapter persists its transfers, waits for connectivity (or an unmetered network when requested), retries
+transient failures with exponential backoff, honors `Retry-After` and resumes interrupted downloads. What differs is who
+keeps them running while the app is not in the foreground:
+
+| Adapter | Runs in background | Runs after app is closed | Notes |
+| --- | --- | --- | --- |
+| Android (`HttpTransferService` + WorkManager) | Yes, in WorkManager runs | Yes (not after *Force stop*) | While any transfer is unfinished, WorkManager work `bns.transfers` (network required) keeps the queue moving in the app process. Each run is capped at about 10 minutes; the next run resumes downloads from the last byte. Uploads restart from the beginning. |
+| iOS (background `URLSession`) | Yes, performed by the system | Yes, unless the user force-quit the app | The system decides when transfers run and relaunches the app in the background to deliver results. Force-quit cancels them; they are retried on the next launch. Uploads restart from the beginning. |
+| Mac Catalyst, Windows, desktop (`HttpTransferService`) | Yes, while the process runs | No; resumes on next launch | Machine sleep pauses transfers. |
+| Blazor Server (`HttpTransferService`) | Runs on the server | Server process lifetime | Uses the server's network, not the user's browser. |
+| Blazor WebAssembly | – | – | Not available: reports `Unsupported`. |
+
+The Core `HttpTransferService` resumes downloads with `Range` and `If-Range` requests. With
+`HttpTransferOptions.UseBackgroundWork` it hands its queue to the registered `IBackgroundWorkScheduler`; the Android
+adapter enables this when WorkManager is used. The iOS adapter (`AppleBackgroundTransferService`) needs one line in the
+app delegate, see [ios.md](adapters/ios.md#background-transfers).
 
 ## Resuming interrupted workflows (`IWorkflowCheckpointStore`)
 

@@ -10,6 +10,7 @@
     <ProjectReference Include="..\..\src\BlazorNativeSdk.Abstractions\BlazorNativeSdk.Abstractions.csproj" />
     <ProjectReference Include="..\..\src\BlazorNativeSdk.Core\BlazorNativeSdk.Core.csproj" />
     <ProjectReference Include="..\..\src\BlazorNativeSdk.Desktop\BlazorNativeSdk.Desktop.csproj" />
+    <ProjectReference Include="..\..\src\BlazorNativeSdk.Testing\BlazorNativeSdk.Testing.csproj" />
   </ItemGroup>
 
   <ItemGroup>

@@ -42,6 +42,21 @@ public sealed class AppleNativeOptions
     public string? ProcessingTaskIdentifier { get; set; }
 
     /// <summary>
+    /// On iOS, run transfers (<see cref="Lifecycle.ITransferService"/>) in a background <c>URLSession</c>
+    /// (<see cref="AppleBackgroundTransferService"/>), so they continue while the app is suspended or closed. When
+    /// <see langword="false"/>, the Core in-process queue is used and transfers pause while the app is in the background.
+    /// Mac Catalyst always uses the in-process queue (apps are not suspended there). Default: <see langword="true"/>.
+    /// </summary>
+    public bool UseBackgroundUrlSession { get; set; } = true;
+
+    /// <summary>
+    /// The identifier of the background <c>URLSession</c> used for transfers. Default:
+    /// <see cref="AppleBackgroundTransfers.DefaultSessionIdentifier"/> (<c>{CFBundleIdentifier}.bns.transfers</c>). Changing it
+    /// orphans transfers that are in flight in the previous session.
+    /// </summary>
+    public string? BackgroundTransferSessionIdentifier { get; set; }
+
+    /// <summary>
     /// How notifications are presented while the app is in the foreground (see <see cref="NativeSdkNotificationCenterDelegate"/>).
     /// Default: banner, Notification Center list, sound and badge. Use <see cref="UNNotificationPresentationOptions.None"/> to
     /// suppress them while the app is open.

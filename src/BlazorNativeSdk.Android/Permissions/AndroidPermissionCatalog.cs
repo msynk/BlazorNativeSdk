@@ -80,7 +80,7 @@ internal static class AndroidPermissionCatalog
                 ? AndroidPermissionPlan.Runtime(PostNotifications)
                 : new AndroidPermissionPlan(AndroidPermissionKind.LegacyNotifications, []),
             "storage-read" => apiLevel >= 33 ? AndroidPermissionPlan.NotRequired : AndroidPermissionPlan.Runtime(ReadExternalStorage),
-            "storage-write" => apiLevel >= 30 ? AndroidPermissionPlan.NotRequired : AndroidPermissionPlan.Runtime(WriteExternalStorage),
+            "storage-write" => apiLevel >= 29 ? AndroidPermissionPlan.NotRequired : AndroidPermissionPlan.Runtime(WriteExternalStorage),
             "exact-alarms" => apiLevel >= 31
                 ? new AndroidPermissionPlan(AndroidPermissionKind.ExactAlarms, [ScheduleExactAlarm, UseExactAlarm])
                 : AndroidPermissionPlan.NotRequired,
@@ -110,4 +110,18 @@ internal static class AndroidPermissionMapper
     /// </summary>
     public static PermissionStatus Refine(PermissionStatus status, bool requestedBefore, bool shouldShowRationale) =>
         status == PermissionStatus.Denied && !requestedBefore && !shouldShowRationale ? PermissionStatus.NotDetermined : status;
+
+    /// <summary>
+    /// Notifications below Android 13 have no runtime permission: <see cref="PermissionStatus.NotRequired"/>, unless the user
+    /// disabled the app's notifications in settings (<see cref="PermissionStatus.Denied"/>; no prompt can re-enable them).
+    /// </summary>
+    public static PermissionStatus MapLegacyNotifications(bool notificationsEnabled) =>
+        notificationsEnabled ? PermissionStatus.NotRequired : PermissionStatus.Denied;
+
+    /// <summary>
+    /// Exact alarms on Android 12+ (<c>AlarmManager.canScheduleExactAlarms()</c>): an app-op the user grants in system
+    /// settings, so it is undecided until the app asked for it once.
+    /// </summary>
+    public static PermissionStatus MapExactAlarms(bool canScheduleExactAlarms, bool requestedBefore) =>
+        canScheduleExactAlarms ? PermissionStatus.Granted : requestedBefore ? PermissionStatus.Denied : PermissionStatus.NotDetermined;
 }

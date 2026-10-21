@@ -1,0 +1,38 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>$(BlazorNativeSdkTargetFramework)</TargetFramework>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>BlazorNativeSdk.ApplePlatform.Tests</RootNamespace>
+  </PropertyGroup>
+
+  <!--
+    BlazorNativeSdk.iOS targets net10.0-ios and net10.0-maccatalyst, which a net10.0 test host cannot reference. Its pure
+    mapping sources (no Apple bindings) are compiled into this project instead, so the tests run on any desktop runner.
+  -->
+  <ItemGroup>
+    <Compile Include="..\..\src\BlazorNativeSdk.iOS\Barcode\AppleBarcodeMapping.cs" Link="Linked\AppleBarcodeMapping.cs" />
+    <Compile Include="..\..\src\BlazorNativeSdk.iOS\Biometrics\AppleBiometricErrorMapper.cs" Link="Linked\AppleBiometricErrorMapper.cs" />
+    <Compile Include="..\..\src\BlazorNativeSdk.iOS\Files\AppleFileTypeMapping.cs" Link="Linked\AppleFileTypeMapping.cs" />
+    <Compile Include="..\..\src\BlazorNativeSdk.iOS\Internal\AppleActivationMapping.cs" Link="Linked\AppleActivationMapping.cs" />
+    <Compile Include="..\..\src\BlazorNativeSdk.iOS\Internal\AppleAuthorizationMapping.cs" Link="Linked\AppleAuthorizationMapping.cs" />
+    <Compile Include="..\..\src\BlazorNativeSdk.iOS\Internal\AppleInfoPlistErrors.cs" Link="Linked\AppleInfoPlistErrors.cs" />
+    <Compile Include="..\..\src\BlazorNativeSdk.iOS\Internal\AppleJsonContext.cs" Link="Linked\AppleJsonContext.cs" />
+    <Compile Include="..\..\src\BlazorNativeSdk.iOS\Lifecycle\AppleConnectivityMapping.cs" Link="Linked\AppleConnectivityMapping.cs" />
+    <Compile Include="..\..\src\BlazorNativeSdk.iOS\Notifications\AppleNotificationMapping.cs" Link="Linked\AppleNotificationMapping.cs" />
+    <Compile Include="..\..\src\BlazorNativeSdk.iOS\Transfers\AppleTransferMapping.cs" Link="Linked\AppleTransferMapping.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\BlazorNativeSdk.Abstractions\BlazorNativeSdk.Abstractions.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="xunit.v3" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="Xunit" />
+  </ItemGroup>
+
+</Project>

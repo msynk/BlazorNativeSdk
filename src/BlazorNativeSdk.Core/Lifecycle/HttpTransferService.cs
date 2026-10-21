@@ -5,6 +5,7 @@ using System.Runtime.Versioning;
 using System.Text.Json;
 using BlazorNativeSdk.Devices;
 using BlazorNativeSdk.Serialization;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
@@ -28,6 +29,14 @@ public sealed class HttpTransferOptions
     /// <summary>Whether transfers keep running while the app is in the background (true for desktop hosts). Reported in the policy.</summary>
     public bool ContinuesInBackground { get; set; } = true;
 
+    /// <summary>
+    /// Hands pending transfers to the registered <see cref="IBackgroundWorkScheduler"/>: while any transfer is unfinished,
+    /// one-time work (id <c>bns.transfers</c>, network required) is kept scheduled, and its runs keep the queue moving
+    /// while the app is in the background or after the OS restarted it. Useful only with an OS-backed scheduler such as
+    /// Android WorkManager; the policy reports what that scheduler guarantees. Default: <see langword="false"/>.
+    /// </summary>
+    public bool UseBackgroundWork { get; set; }
+
     /// <summary>The minimum interval between progress events for one transfer. Default: 250 ms.</summary>
     public TimeSpan ProgressInterval { get; set; } = TimeSpan.FromMilliseconds(250);
 
@@ -47,14 +56,21 @@ public sealed class HttpTransferOptions
 /// <summary>
 /// A durable transfer queue based on <see cref="HttpClient"/>. Transfers are persisted, wait for connectivity, retry with
 /// exponential backoff (honoring <c>Retry-After</c>), and downloads resume from the last received byte using HTTP range
-/// requests validated with <c>If-Range</c>. Transfers run only while the app process is alive and resume on next launch.
+/// requests validated with <c>If-Range</c>. Transfers run only while the app process is alive and resume on next launch,
+/// unless <see cref="HttpTransferOptions.UseBackgroundWork"/> lets an OS-backed scheduler run the queue in the background.
 /// </summary>
 [UnsupportedOSPlatform("browser")]
 public sealed partial class HttpTransferService : ITransferService, INativeSdkStartupTask, IAsyncDisposable, IDisposable
 {
+    /// <summary>The work id and worker name used when <see cref="HttpTransferOptions.UseBackgroundWork"/> is enabled.</summary>
+    public const string BackgroundWorkName = "bns.transfers";
+
     private const string Prefix = "bns.transfer.";
     private const string PartialSuffix = ".part";
     private static readonly Lazy<HttpClient> s_sharedClient = new(() => new HttpClient { Timeout = Timeout.InfiniteTimeSpan });
+
+    // A background run keeps waiting while a retry is due within this window instead of handing back to the scheduler.
+    private static readonly TimeSpan s_backgroundRetryWindow = TimeSpan.FromMinutes(1);
 
     private readonly IServiceProvider _services;
     private readonly INativeStateStore _store;
@@ -65,13 +81,18 @@ public sealed partial class HttpTransferService : ITransferService, INativeSdkSt
     private readonly TimeProvider _time;
     private readonly ConcurrentDictionary<string, TransferRecord> _records = new(StringComparer.Ordinal);
     private readonly ConcurrentDictionary<string, CancellationTokenSource> _active = new(StringComparer.Ordinal);
+    private readonly ConcurrentDictionary<Task, byte> _runs = new();
     private readonly ConcurrentDictionary<string, TaskCompletionSource<TransferInfo>> _waiters = new(StringComparer.Ordinal);
     private readonly SemaphoreSlim _loadLock = new(1, 1);
     private readonly SemaphoreSlim _wake = new(0, 1);
     private readonly CancellationTokenSource _shutdown = new();
+    private readonly Lock _backgroundGate = new();
+    private TaskCompletionSource _changed = NewSignal();
+    private TransferPolicy? _policy;
     private HttpClient? _client;
     private bool _loaded;
     private Task? _loop;
+    private int _backgroundRuns;
     private int _disposed;
 
     /// <summary>Creates the service.</summary>
@@ -92,22 +113,14 @@ public sealed partial class HttpTransferService : ITransferService, INativeSdkSt
         _options = options.Value;
         _logger = logger;
         _time = timeProvider ?? TimeProvider.System;
-        Policy = new TransferPolicy
-        {
-            Adapter = _options.AdapterName,
-            ContinuesInBackground = _options.ContinuesInBackground,
-            ContinuesAfterTermination = false,
-            ResumesDownloads = true,
-            Summary = "Transfers run inside the app process, wait for connectivity, retry with backoff and resume after restarts. " +
-                      "Downloads continue from the last byte when the server supports range requests. Nothing transfers while the app is closed.",
-        };
     }
 
     /// <inheritdoc />
     public CapabilityId Capability => NativeCapabilities.Transfers;
 
     /// <inheritdoc />
-    public TransferPolicy Policy { get; }
+    /// <remarks>With <see cref="HttpTransferOptions.UseBackgroundWork"/>, the background guarantees come from the registered scheduler's policy.</remarks>
+    public TransferPolicy Policy => _policy ??= CreatePolicy();
 
     /// <inheritdoc />
     public event EventHandler<TransferInfo>? TransferChanged;
@@ -115,8 +128,21 @@ public sealed partial class HttpTransferService : ITransferService, INativeSdkSt
     private HttpClient Client => _client ??= _options.HttpClientFactory?.Invoke(_services) ?? s_sharedClient.Value;
 
     /// <inheritdoc />
-    public ValueTask<CapabilityStatus> GetStatusAsync(CancellationToken cancellationToken = default) =>
-        ValueTask.FromResult(CapabilityStatus.Available(Capability, _options.AdapterName, "resume-downloads", "retry", "persisted"));
+    public ValueTask<CapabilityStatus> GetStatusAsync(CancellationToken cancellationToken = default)
+    {
+        var features = new List<string> { "resume-downloads", "retry", "persisted" };
+        if (Policy.ContinuesInBackground)
+        {
+            features.Add("continues-in-background");
+        }
+
+        if (Policy.ContinuesAfterTermination)
+        {
+            features.Add("continues-after-termination");
+        }
+
+        return ValueTask.FromResult(CapabilityStatus.Available(Capability, _options.AdapterName, [.. features]));
+    }
 
     /// <inheritdoc />
     public async ValueTask StartAsync(CancellationToken cancellationToken)
@@ -129,6 +155,63 @@ public sealed partial class HttpTransferService : ITransferService, INativeSdkSt
 
         _connectivity.Changed += OnConnectivityChanged;
         _loop = Task.Run(LoopAsync, CancellationToken.None);
+        if (_records.Values.Any(r => !r.ToInfo().IsFinished))
+        {
+            // Keep an existing schedule (and its backoff); only re-create it when it finished or failed.
+            RequestBackgroundRun(ExistingWorkPolicy.Keep);
+        }
+    }
+
+    /// <summary>
+    /// Runs the queue until every transfer has finished or the remaining ones wait for the network or a retry more than a
+    /// minute away. Called by the background worker that <see cref="HttpTransferOptions.UseBackgroundWork"/> schedules.
+    /// </summary>
+    /// <returns><see langword="true"/> when unfinished transfers remain and the scheduler should run again later.</returns>
+    internal async Task<bool> RunPendingAsync(CancellationToken cancellationToken)
+    {
+        lock (_backgroundGate)
+        {
+            _backgroundRuns++;
+        }
+
+        var released = false;
+        try
+        {
+            await StartAsync(cancellationToken).ConfigureAwait(false);
+            Wake();
+            while (true)
+            {
+                var changed = Volatile.Read(ref _changed).Task;
+                if (GetBackgroundState() != BackgroundState.Active)
+                {
+                    lock (_backgroundGate)
+                    {
+                        // Decide under the gate: a transfer enqueued concurrently is either seen here or, once this run
+                        // is released, schedules a new run itself.
+                        var state = GetBackgroundState();
+                        if (state != BackgroundState.Active)
+                        {
+                            _backgroundRuns--;
+                            released = true;
+                            return state == BackgroundState.Waiting;
+                        }
+                    }
+                }
+
+                await Task.WhenAny(changed, Task.Delay(TimeSpan.FromSeconds(1), _time, cancellationToken)).ConfigureAwait(false);
+                cancellationToken.ThrowIfCancellationRequested();
+            }
+        }
+        finally
+        {
+            if (!released)
+            {
+                lock (_backgroundGate)
+                {
+                    _backgroundRuns--;
+                }
+            }
+        }
     }
 
     /// <inheritdoc />
@@ -247,6 +330,7 @@ public sealed partial class HttpTransferService : ITransferService, INativeSdkSt
             r.NextAttemptAt = null;
         }, cancellationToken).ConfigureAwait(false);
         Wake();
+        RequestBackgroundRun(ExistingWorkPolicy.Replace);
         return record.ToInfo();
     }
 
@@ -309,6 +393,16 @@ public sealed partial class HttpTransferService : ITransferService, INativeSdkSt
             }
         }
 
+        // Running transfers observe the shutdown token; wait until they released their files.
+        try
+        {
+            await Task.WhenAll(_runs.Keys).ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            LogLoopFailed(_logger, ex);
+        }
+
         _shutdown.Dispose();
     }
 
@@ -333,7 +427,116 @@ public sealed partial class HttpTransferService : ITransferService, INativeSdkSt
         await PersistAsync(record, cancellationToken).ConfigureAwait(false);
         Raise(record);
         Wake();
+
+        // Replace rather than keep: a run that just decided to finish may still be reported as running by the scheduler.
+        RequestBackgroundRun(ExistingWorkPolicy.Replace);
         return record.ToInfo();
+    }
+
+    private TransferPolicy CreatePolicy()
+    {
+        var background = _options.UseBackgroundWork ? _services.GetService<IBackgroundWorkScheduler>()?.Policy : null;
+        if (background is { RunsInBackground: true })
+        {
+            return new TransferPolicy
+            {
+                Adapter = _options.AdapterName,
+                ContinuesInBackground = true,
+                ContinuesAfterTermination = background.RunsAfterTermination,
+                ResumesDownloads = true,
+                Summary = "Transfers are persisted, wait for connectivity, retry with backoff and resume downloads from the last byte when the " +
+                          $"server supports range requests. While transfers are pending, the '{background.Adapter}' scheduler runs the queue in the background" +
+                          (background.RunsAfterTermination ? " and after the app was closed" : string.Empty) +
+                          ", within the execution windows the OS grants. Interrupted uploads start again from the beginning.",
+            };
+        }
+
+        return new TransferPolicy
+        {
+            Adapter = _options.AdapterName,
+            ContinuesInBackground = _options.ContinuesInBackground,
+            ContinuesAfterTermination = false,
+            ResumesDownloads = true,
+            Summary = "Transfers run inside the app process, wait for connectivity, retry with backoff and resume after restarts. " +
+                      "Downloads continue from the last byte when the server supports range requests. Nothing transfers while the app is closed.",
+        };
+    }
+
+    private BackgroundState GetBackgroundState()
+    {
+        var now = _time.GetUtcNow();
+        var connectivity = _connectivity.Current;
+        var state = BackgroundState.Idle;
+        foreach (var record in _records.Values)
+        {
+            switch (record.Status)
+            {
+                case TransferStatus.Queued or TransferStatus.Running:
+                    return BackgroundState.Active;
+                case TransferStatus.Retrying when record.NextAttemptAt is not { } next || next - now <= s_backgroundRetryWindow:
+                    return BackgroundState.Active;
+                case TransferStatus.WaitingForNetwork when NetworkAllows(record, connectivity):
+                    return BackgroundState.Active;
+                case TransferStatus.Retrying or TransferStatus.WaitingForNetwork:
+                    state = BackgroundState.Waiting;
+                    break;
+            }
+        }
+
+        return state;
+    }
+
+    private void RequestBackgroundRun(ExistingWorkPolicy policy)
+    {
+        if (!_options.UseBackgroundWork || Volatile.Read(ref _disposed) != 0)
+        {
+            return;
+        }
+
+        lock (_backgroundGate)
+        {
+            if (_backgroundRuns > 0)
+            {
+                // A background run is draining the queue in this process and picks the transfer up.
+                return;
+            }
+        }
+
+        _ = ScheduleBackgroundRunAsync(policy);
+    }
+
+    private async Task ScheduleBackgroundRunAsync(ExistingWorkPolicy policy)
+    {
+        try
+        {
+            if (_services.GetService<IBackgroundWorkScheduler>() is not { } scheduler)
+            {
+                return;
+            }
+
+            var result = await scheduler.ScheduleAsync(new WorkRequest
+            {
+                Id = BackgroundWorkName,
+                WorkerName = BackgroundWorkName,
+                Constraints = WorkConstraints.NetworkConnected,
+                ExistingPolicy = policy,
+                BackoffDelay = TimeSpan.FromSeconds(30),
+
+                // Transfers decide on their own when to give up; the run itself retries for as long as any is unfinished.
+                MaxAttempts = int.MaxValue,
+            }, _shutdown.Token).ConfigureAwait(false);
+            if (!result.IsSuccess)
+            {
+                LogBackgroundScheduleFailed(_logger, result.Error.Message, null);
+            }
+        }
+        catch (OperationCanceledException) when (_shutdown.IsCancellationRequested)
+        {
+        }
+        catch (Exception ex)
+        {
+            LogBackgroundScheduleFailed(_logger, ex.Message, ex);
+        }
     }
 
     private NativeResult<string> ResolvePath(string path)
@@ -484,7 +687,10 @@ public sealed partial class HttpTransferService : ITransferService, INativeSdkSt
 
             var cts = CancellationTokenSource.CreateLinkedTokenSource(token);
             _active[record.Id] = cts;
-            _ = Task.Run(() => RunAsync(record, cts), CancellationToken.None);
+            var run = Task.Run(() => RunAsync(record, cts), CancellationToken.None);
+            _runs.TryAdd(run, 0);
+            _ = run.ContinueWith(static (task, runs) => ((ConcurrentDictionary<Task, byte>)runs!).TryRemove(task, out _), _runs,
+                CancellationToken.None, TaskContinuationOptions.ExecuteSynchronously, TaskScheduler.Default);
         }
     }
 
@@ -812,6 +1018,7 @@ public sealed partial class HttpTransferService : ITransferService, INativeSdkSt
 
     private void Raise(TransferRecord record)
     {
+        Interlocked.Exchange(ref _changed, NewSignal()).TrySetResult();
         try
         {
             TransferChanged?.Invoke(this, record.ToInfo());
@@ -821,6 +1028,8 @@ public sealed partial class HttpTransferService : ITransferService, INativeSdkSt
             LogLoopFailed(_logger, ex);
         }
     }
+
+    private static TaskCompletionSource NewSignal() => new(TaskCreationOptions.RunContinuationsAsynchronously);
 
     private void OnConnectivityChanged(object? sender, ConnectivityChangedEventArgs e)
     {
@@ -868,6 +1077,21 @@ public sealed partial class HttpTransferService : ITransferService, INativeSdkSt
 
     [LoggerMessage(EventId = 1504, Level = LogLevel.Error, Message = "Transfer {TransferId} failed permanently.")]
     private static partial void LogFailed(ILogger logger, string transferId, Exception exception);
+
+    [LoggerMessage(EventId = 1505, Level = LogLevel.Warning, Message = "Pending transfers could not be handed to the background work scheduler: {Reason}")]
+    private static partial void LogBackgroundScheduleFailed(ILogger logger, string reason, Exception? exception);
+
+    private enum BackgroundState
+    {
+        // Every transfer has finished.
+        Idle,
+
+        // Transfers are queued, running or about to retry.
+        Active,
+
+        // Unfinished transfers wait for the network or a retry that is not due soon.
+        Waiting,
+    }
 
     private sealed class TransferHttpException(HttpStatusCode statusCode, TimeSpan? retryAfter, string message) : Exception(message)
     {

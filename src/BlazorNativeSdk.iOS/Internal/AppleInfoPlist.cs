@@ -28,19 +28,8 @@ internal static class AppleInfoPlist
             NSBundle.MainBundle.ObjectForInfoDictionary(k) is NSString value && value.Length > 0);
 
     /// <summary>Returns an error naming the missing key, or <see langword="null"/> when the key is declared.</summary>
-    public static NativeError? RequireUsageDescription(CapabilityId capability, string key, string purpose)
-    {
-        if (HasUsageDescription(key))
-        {
-            return null;
-        }
-
-        return NativeError.Unavailable(
-            capability,
-            NativeErrorCodes.MissingDeclaration,
-            $"Add '{key}' to Info.plist with a user-facing explanation of why the app needs {purpose}. " +
-            "iOS terminates apps that use this API without it, so the operation was not attempted.");
-    }
+    public static NativeError? RequireUsageDescription(CapabilityId capability, string key, string purpose) =>
+        HasUsageDescription(key) ? null : AppleInfoPlistErrors.MissingUsageDescription(capability, key, purpose);
 
     /// <summary>Returns the string entries of an array-valued key (empty when absent).</summary>
     public static IReadOnlyList<string> GetStringArray(string key) =>

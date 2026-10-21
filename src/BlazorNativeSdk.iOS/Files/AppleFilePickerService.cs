@@ -46,7 +46,10 @@ public sealed partial class AppleFilePickerService : IFilePickerService, IDispos
         options ??= new FilePickOptions();
         return NativeOperation.RunAsync<IReadOnlyList<NativeFile>>(Capability, async token =>
         {
-            var identifiers = AppleFileTypeMapping.ToTypeIdentifiers(options.FileTypes);
+            var identifiers = AppleFileTypeMapping.ToTypeIdentifiers(
+                options.FileTypes,
+                static mimeType => UTType.CreateFromMimeType(mimeType)?.Identifier,
+                static extension => UTType.CreateFromExtension(extension)?.Identifier);
             var pickOptions = new PickOptions
             {
                 PickerTitle = options.Title,

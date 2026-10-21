@@ -72,3 +72,11 @@ body {
 .bns-result--cancelled, .bns-result--unsupported { border-left-color: var(--bns-muted); }
 .bns-result--permissiondenied, .bns-result--unavailable { border-left-color: var(--bns-warn); }
 .bns-result--failed { border-left-color: var(--bns-bad); }
+
+.bns-activation {
+  display: flex; gap: 12px; align-items: flex-start; justify-content: space-between;
+  margin: 12px 0; padding: 8px 12px; border-radius: 10px;
+  border: 1px solid var(--bns-accent); border-left-width: 4px; background: var(--bns-surface);
+}
+.bns-activation .bns-badge { color: var(--bns-accent); margin-left: 6px; }
+.bns-activation-detail { display: inline-block; margin-right: 12px; overflow-wrap: anywhere; }

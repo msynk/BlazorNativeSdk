@@ -71,7 +71,7 @@ public sealed partial class AndroidNotificationService : INotificationService, I
     {
         if (OperatingSystem.IsAndroidVersionAtLeast(33) && !MauiPermissions.IsDeclaredInManifest(AndroidPermissionCatalog.PostNotifications))
         {
-            return CapabilityStatus.FromError(EssentialsErrors.MissingDeclaration(Capability, AndroidPermissionCatalog.PostNotifications), AdapterName);
+            return CapabilityStatus.FromError(AndroidPermissionErrors.MissingDeclaration(Capability, AndroidPermissionCatalog.PostNotifications), AdapterName);
         }
 
         if (AndroidPermissionService.AreNotificationsEnabled())

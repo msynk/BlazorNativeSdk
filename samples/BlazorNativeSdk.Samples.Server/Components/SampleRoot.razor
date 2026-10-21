@@ -1,0 +1,11 @@
+@* The interactive root of every circuit. App.razor renders it with InteractiveServer, so it is prerendered first and then
+   rendered again once the circuit is connected.
+
+   BrowserNativeSdkInitializer must be inside the interactive tree: on a server every circuit has its own browser services,
+   and the initializer starts this circuit's listeners (page lifecycle, connectivity, notification taps, protocol-handler
+   links and the cold-start ?bns-notification-click= tap) after the first interactive render. It does nothing while
+   prerendering. It lives here rather than in the shared MainLayout because the shared pages also run in the MAUI and WPF
+   samples, which don't reference the browser adapter. MainLayout contains <NativeActivationOutlet />, which connects this
+   circuit's activation pipeline to its router. *@
+<BrowserNativeSdkInitializer />
+<Routes />

@@ -80,7 +80,7 @@ public sealed partial class AppleConnectivityService : IConnectivityService, IDi
         }
 
         var snapshot = AppleConnectivityMapping.ToSnapshot(
-            path.Status,
+            (long)path.Status,
             path.UsesInterfaceType(NWInterfaceType.Wifi),
             path.UsesInterfaceType(NWInterfaceType.Cellular),
             path.UsesInterfaceType(NWInterfaceType.Wired),

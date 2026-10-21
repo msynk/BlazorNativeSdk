@@ -35,6 +35,10 @@ jobs:
           dotnet test --project tests/BlazorNativeSdk.Core.Tests -c Release
           dotnet test --project tests/BlazorNativeSdk.Desktop.Tests -c Release
           dotnet test --project tests/BlazorNativeSdk.Browser.Tests -c Release
+          # Platform-mapping logic of the mobile adapters, compiled for net10.0 (no workloads or devices needed).
+          dotnet test --project tests/BlazorNativeSdk.Android.Tests -c Release
+          dotnet test --project tests/BlazorNativeSdk.iOS.Tests -c Release
+          dotnet test --project tests/BlazorNativeSdk.Maui.Tests -c Release
 
   windows:
     name: Full solution, Windows adapter and WPF host

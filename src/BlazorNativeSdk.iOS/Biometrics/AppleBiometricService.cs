@@ -136,7 +136,7 @@ public sealed partial class AppleBiometricService : IBiometricService
             {
                 return policyError is null
                     ? NativeError.Unavailable(Capability, NativeErrorCodes.HardwareUnavailable, "The authentication policy cannot be evaluated on this device.")
-                    : AppleBiometricErrorMapper.Map(policyError, faceIdDenied);
+                    : AppleBiometricErrorMapper.Map(policyError.Domain, (long)policyError.Code, faceIdDenied, policyError.LocalizedDescription);
             }
 
             Tuple<bool, NSError?> outcome;
@@ -153,7 +153,7 @@ public sealed partial class AppleBiometricService : IBiometricService
             }
 
             var error = outcome.Item2 is { } nsError
-                ? AppleBiometricErrorMapper.Map(nsError, faceIdDenied)
+                ? AppleBiometricErrorMapper.Map(nsError.Domain, (long)nsError.Code, faceIdDenied, nsError.LocalizedDescription)
                 : NativeError.Failed(Capability, NativeErrorCodes.PlatformError, "Authentication failed without an error.");
             if (error.Status == NativeResultStatus.Failed)
             {

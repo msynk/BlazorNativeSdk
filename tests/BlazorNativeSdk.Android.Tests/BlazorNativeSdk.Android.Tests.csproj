@@ -1,0 +1,44 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>$(BlazorNativeSdkTargetFramework)</TargetFramework>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>BlazorNativeSdk.AndroidPlatform.Tests</RootNamespace>
+  </PropertyGroup>
+
+  <!--
+    BlazorNativeSdk.Android targets net10.0-android, which a net10.0 test host cannot reference. Its pure mapping sources
+    (no Android bindings) are compiled into this project instead, so the tests run on any desktop runner without an emulator.
+  -->
+  <ItemGroup>
+    <Compile Include="..\..\src\BlazorNativeSdk.Android\AndroidErrorCodes.cs" Link="Linked\AndroidErrorCodes.cs" />
+    <Compile Include="..\..\src\BlazorNativeSdk.Android\AndroidNativeOptions.cs" Link="Linked\AndroidNativeOptions.cs" />
+    <Compile Include="..\..\src\BlazorNativeSdk.Android\Activation\NotificationIntentToken.cs" Link="Linked\NotificationIntentToken.cs" />
+    <Compile Include="..\..\src\BlazorNativeSdk.Android\BackgroundWork\AndroidWorkMapper.cs" Link="Linked\AndroidWorkMapper.cs" />
+    <Compile Include="..\..\src\BlazorNativeSdk.Android\Barcode\AndroidBarcodeMapper.cs" Link="Linked\AndroidBarcodeMapper.cs" />
+    <Compile Include="..\..\src\BlazorNativeSdk.Android\Biometrics\AndroidBiometricErrorMapper.cs" Link="Linked\AndroidBiometricErrorMapper.cs" />
+    <Compile Include="..\..\src\BlazorNativeSdk.Android\Connectivity\AndroidConnectivityMapper.cs" Link="Linked\AndroidConnectivityMapper.cs" />
+    <Compile Include="..\..\src\BlazorNativeSdk.Android\Hosting\AndroidHostInfoMapping.cs" Link="Linked\AndroidHostInfoMapping.cs" />
+    <Compile Include="..\..\src\BlazorNativeSdk.Android\Internal\StableHash.cs" Link="Linked\StableHash.cs" />
+    <Compile Include="..\..\src\BlazorNativeSdk.Android\Lifecycle\AndroidLifecycleMapper.cs" Link="Linked\AndroidLifecycleMapper.cs" />
+    <Compile Include="..\..\src\BlazorNativeSdk.Android\Notifications\NotificationExtras.cs" Link="Linked\NotificationExtras.cs" />
+    <Compile Include="..\..\src\BlazorNativeSdk.Android\Notifications\NotificationModels.cs" Link="Linked\NotificationModels.cs" />
+    <Compile Include="..\..\src\BlazorNativeSdk.Android\Permissions\AndroidPermissionCatalog.cs" Link="Linked\AndroidPermissionCatalog.cs" />
+    <Compile Include="..\..\src\BlazorNativeSdk.Android\Permissions\AndroidPermissionErrors.cs" Link="Linked\AndroidPermissionErrors.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\BlazorNativeSdk.Abstractions\BlazorNativeSdk.Abstractions.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="xunit.v3" />
+    <!-- The net10.0 build of Essentials provides the permission and connectivity enums and PermissionException. -->
+    <PackageReference Include="Microsoft.Maui.Essentials" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="Xunit" />
+  </ItemGroup>
+
+</Project>

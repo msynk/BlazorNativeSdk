@@ -58,8 +58,8 @@ can be tested on its own.
 | `BlazorNativeSdk.Abstractions` | Contracts only. Reference it from libraries that consume capabilities. |
 | `BlazorNativeSdk.Core` | Runtime: DI builder, registry, fallbacks, activation routing, scheduler, transfers, checkpoints, `<CapabilityView>`, `<NativeActivationOutlet>`. |
 | `BlazorNativeSdk.Browser` | Blazor WebAssembly and Server: camera, barcode (Shape Detection API), files, share, clipboard, notifications, permissions, lifecycle, connectivity. |
-| `BlazorNativeSdk.Android` | Android: MediaPicker, Google Code Scanner, BiometricPrompt, notifications with exact and inexact alarms, WorkManager, App Links. |
-| `BlazorNativeSdk.iOS` | iOS and Mac Catalyst: VisionKit and AVFoundation scanning, LocalAuthentication, Keychain, UNUserNotificationCenter, BGTaskScheduler, Universal Links. |
+| `BlazorNativeSdk.Android` | Android: MediaPicker, Google Code Scanner, BiometricPrompt, notifications with exact and inexact alarms, WorkManager (background work and transfers), App Links. |
+| `BlazorNativeSdk.iOS` | iOS and Mac Catalyst: AVFoundation and Vision scanning, LocalAuthentication, Keychain, UNUserNotificationCenter, BGTaskScheduler, background URLSession transfers, Universal Links. |
 | `BlazorNativeSdk.Windows` | Win32 and WinRT for WPF, WinForms and MAUI on Windows: Windows Hello, DPAPI, toasts, pickers, share, tray, global hotkeys, menus, displays. |
 | `BlazorNativeSdk.Desktop` | Host-neutral desktop services: authenticated IPC, single instance with argument forwarding, shell file operations, protocol registration. |
 | `BlazorNativeSdk.Maui` | .NET MAUI integration: one call wires lifecycle events, deep links and multi-window support. |
@@ -133,6 +133,7 @@ sealed class ArchiveMessageHandler(IMessageStore store) : IActivationHandler
 | Local notifications | ✅ immediate | ✅ + scheduled, actions, reply | ✅ + scheduled, actions, reply | ✅ toasts + scheduled | |
 | Deep links | protocol handler, PWA launch | intents / App Links | URL types / Universal Links | protocol + single instance | ✅ forwarding |
 | Background work | in-process (foreground) | WorkManager | BGTaskScheduler | in-process | in-process |
+| Resumable transfers | ⛔ WebAssembly / ✅ on the server (Blazor Server) | ✅ kept running by WorkManager | ✅ background URLSession | ✅ in-process | ✅ in-process |
 | Windows, tray, hotkeys, menus | ⛔ | ⛔ | ⛔ | ✅ | IPC, single instance, shell ops |
 
 ✅ supported · ⛔ reports `Unsupported` with a reason. See [docs/adapters](docs/adapters) for every detail and caveat.
@@ -145,6 +146,15 @@ sealed class ArchiveMessageHandler(IMessageStore store) : IActivationHandler
 - [Writing an adapter](docs/adapter-authoring.md)
 - Adapter guides: [Browser](docs/adapters/browser.md) · [Android](docs/adapters/android.md) · [iOS](docs/adapters/ios.md) ·
   [Windows](docs/adapters/windows.md) · [Desktop](docs/adapters/desktop.md) · [MAUI](docs/adapters/maui.md) · [WPF](docs/adapters/wpf.md)
+
+## Samples
+
+The pages in `samples/BlazorNativeSdk.Samples.Shared` run unchanged in every host:
+
+- `samples/BlazorNativeSdk.Samples.Wasm`: Blazor WebAssembly, with a service worker for notification actions and taps after the page closed.
+- `samples/BlazorNativeSdk.Samples.Server`: Blazor Server (interactive server rendering), with per-circuit capabilities.
+- `samples/BlazorNativeSdk.Samples.Maui`: .NET MAUI Blazor Hybrid on Android, iOS, Mac Catalyst and Windows, with the manifest, Info.plist and app delegate code the adapters need.
+- `samples/BlazorNativeSdk.Samples.Wpf`: WPF Blazor Hybrid with tray, hotkeys, menus, windows and single instance.
 
 ## Building
 

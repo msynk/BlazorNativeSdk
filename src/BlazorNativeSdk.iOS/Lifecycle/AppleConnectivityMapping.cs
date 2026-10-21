@@ -1,13 +1,20 @@
 using BlazorNativeSdk.Lifecycle;
-using Network;
 
 namespace BlazorNativeSdk.ApplePlatform;
 
-/// <summary>Maps <c>NWPath</c> observations to <see cref="ConnectivitySnapshot"/>s.</summary>
+/// <summary>
+/// Maps <c>NWPath</c> observations to <see cref="ConnectivitySnapshot"/>s. Pure: the path status constants are duplicated as
+/// literals so the mapping can be unit tested without the Apple bindings.
+/// </summary>
 internal static class AppleConnectivityMapping
 {
+    // nw_path_status_t (NWPathStatus in the .NET bindings); 0 is nw_path_status_invalid.
+    private const long Satisfied = 1;    // nw_path_status_satisfied
+    private const long Unsatisfied = 2;  // nw_path_status_unsatisfied
+    private const long Satisfiable = 3;  // nw_path_status_satisfiable
+
     /// <summary>Builds a snapshot from the properties of an <c>NWPath</c>.</summary>
-    /// <param name="status">The path status.</param>
+    /// <param name="status">The path status (<c>NWPathStatus</c> value).</param>
     /// <param name="wifi">The path uses Wi-Fi.</param>
     /// <param name="cellular">The path uses cellular.</param>
     /// <param name="wired">The path uses wired Ethernet.</param>
@@ -15,16 +22,16 @@ internal static class AppleConnectivityMapping
     /// <param name="isExpensive">The path is expensive (cellular or a personal hotspot).</param>
     /// <param name="isConstrained">The path is constrained (Low Data Mode).</param>
     /// <param name="observedAt">The observation time.</param>
-    public static ConnectivitySnapshot ToSnapshot(NWPathStatus status, bool wifi, bool cellular, bool wired, bool other, bool isExpensive, bool isConstrained, DateTimeOffset observedAt)
+    public static ConnectivitySnapshot ToSnapshot(long status, bool wifi, bool cellular, bool wired, bool other, bool isExpensive, bool isConstrained, DateTimeOffset observedAt)
     {
         var access = status switch
         {
-            NWPathStatus.Satisfied => NetworkAccess.Internet,
-            NWPathStatus.Unsatisfied => NetworkAccess.None,
+            Satisfied => NetworkAccess.Internet,
+            Unsatisfied => NetworkAccess.None,
 
             // "requiresConnection": usable once a connection is established (for example an on-demand VPN or cellular that is
             // still coming up).
-            NWPathStatus.Satisfiable => NetworkAccess.ConstrainedInternet,
+            Satisfiable => NetworkAccess.ConstrainedInternet,
             _ => NetworkAccess.Unknown,
         };
 

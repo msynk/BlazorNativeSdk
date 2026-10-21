@@ -1,6 +1,7 @@
 <Solution>
   <Folder Name="/samples/">
     <Project Path="samples/BlazorNativeSdk.Samples.Maui/BlazorNativeSdk.Samples.Maui.csproj" />
+    <Project Path="samples/BlazorNativeSdk.Samples.Server/BlazorNativeSdk.Samples.Server.csproj" />
     <Project Path="samples/BlazorNativeSdk.Samples.Shared/BlazorNativeSdk.Samples.Shared.csproj" />
     <Project Path="samples/BlazorNativeSdk.Samples.Wasm/BlazorNativeSdk.Samples.Wasm.csproj" />
     <Project Path="samples/BlazorNativeSdk.Samples.Wpf/BlazorNativeSdk.Samples.Wpf.csproj" />
@@ -18,9 +19,12 @@
     <Project Path="src/BlazorNativeSdk.Wpf/BlazorNativeSdk.Wpf.csproj" />
   </Folder>
   <Folder Name="/tests/">
+    <Project Path="tests/BlazorNativeSdk.Android.Tests/BlazorNativeSdk.Android.Tests.csproj" />
     <Project Path="tests/BlazorNativeSdk.Browser.Tests/BlazorNativeSdk.Browser.Tests.csproj" />
     <Project Path="tests/BlazorNativeSdk.Core.Tests/BlazorNativeSdk.Core.Tests.csproj" />
     <Project Path="tests/BlazorNativeSdk.Desktop.Tests/BlazorNativeSdk.Desktop.Tests.csproj" />
+    <Project Path="tests/BlazorNativeSdk.iOS.Tests/BlazorNativeSdk.iOS.Tests.csproj" />
+    <Project Path="tests/BlazorNativeSdk.Maui.Tests/BlazorNativeSdk.Maui.Tests.csproj" />
     <Project Path="tests/BlazorNativeSdk.Windows.Tests/BlazorNativeSdk.Windows.Tests.csproj" />
     <Project Path="tests/BlazorNativeSdk.Wpf.Tests/BlazorNativeSdk.Wpf.Tests.csproj" />
   </Folder>

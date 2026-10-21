@@ -1,0 +1,33 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>$(BlazorNativeSdkTargetFramework)</TargetFramework>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>BlazorNativeSdk.Maui.Tests</RootNamespace>
+  </PropertyGroup>
+
+  <!--
+    BlazorNativeSdk.Maui only targets platform frameworks (android, ios, maccatalyst, windows), which a net10.0 test host cannot
+    reference. Its pure sources (no MAUI or platform types) are compiled into this project instead.
+  -->
+  <ItemGroup>
+    <Compile Include="..\..\src\BlazorNativeSdk.Maui\Activation\ActivationReplayFilter.cs" Link="Linked\ActivationReplayFilter.cs" />
+    <Compile Include="..\..\src\BlazorNativeSdk.Maui\Lifecycle\MauiLifecycleMapper.cs" Link="Linked\MauiLifecycleMapper.cs" />
+    <Compile Include="..\..\src\BlazorNativeSdk.Maui\Windowing\MauiWindowIds.cs" Link="Linked\MauiWindowIds.cs" />
+    <Compile Include="..\..\src\BlazorNativeSdk.Maui\Windowing\MauiWindowRoutes.cs" Link="Linked\MauiWindowRoutes.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\BlazorNativeSdk.Abstractions\BlazorNativeSdk.Abstractions.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="xunit.v3" />
+    <PackageReference Include="Microsoft.Extensions.TimeProvider.Testing" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="Xunit" />
+  </ItemGroup>
+
+</Project>
