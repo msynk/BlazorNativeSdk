@@ -1,10 +1,10 @@
 <Solution>
-  <Folder Name="/samples/">
-    <Project Path="samples/BlazorNativeSdk.Samples.Maui/BlazorNativeSdk.Samples.Maui.csproj" />
-    <Project Path="samples/BlazorNativeSdk.Samples.Server/BlazorNativeSdk.Samples.Server.csproj" />
-    <Project Path="samples/BlazorNativeSdk.Samples.Shared/BlazorNativeSdk.Samples.Shared.csproj" />
-    <Project Path="samples/BlazorNativeSdk.Samples.Wasm/BlazorNativeSdk.Samples.Wasm.csproj" />
-    <Project Path="samples/BlazorNativeSdk.Samples.Wpf/BlazorNativeSdk.Samples.Wpf.csproj" />
+  <Folder Name="/demo/">
+    <Project Path="demo/BlazorNativeSdk.Demo.Maui/BlazorNativeSdk.Demo.Maui.csproj" />
+    <Project Path="demo/BlazorNativeSdk.Demo.Server/BlazorNativeSdk.Demo.Server.csproj" />
+    <Project Path="demo/BlazorNativeSdk.Demo.Shared/BlazorNativeSdk.Demo.Shared.csproj" />
+    <Project Path="demo/BlazorNativeSdk.Demo.Wasm/BlazorNativeSdk.Demo.Wasm.csproj" />
+    <Project Path="demo/BlazorNativeSdk.Demo.Wpf/BlazorNativeSdk.Demo.Wpf.csproj" />
   </Folder>
   <Folder Name="/src/">
     <Project Path="src/BlazorNativeSdk.Abstractions/BlazorNativeSdk.Abstractions.csproj" />

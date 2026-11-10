@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>BlazorNativeSdk demo</title>
+    <base href="/" />
+    <link rel="stylesheet" href="_content/BlazorNativeSdk.Demo.Shared/demo.css" />
+    <link rel="manifest" href="manifest.webmanifest" />
+    <link rel="icon" href="data:," />
+</head>
+
+<body>
+    <div id="app">Loading…</div>
+    <script>
+        // Notification action buttons and taps after the page was closed need a service worker (see service-worker.js).
+        // The script URL and scope are relative to <base href>, so the worker controls exactly the app's base path. Without
+        // it (no support, insecure context, private mode) notifications still work, just without the 'actions' feature.
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('service-worker.js', { scope: './' })
+                .catch(error => console.warn('BlazorNativeSdk demo: service worker registration failed.', error));
+        }
+    </script>
+    <script src="_framework/blazor.webassembly.js"></script>
+</body>
+
+</html>

@@ -82,7 +82,7 @@ Cancelling the caller's token throws `OperationCanceledException` and closes any
 | `IActivationHandler` | resolved from a new scope | resolved from a new scope, **not** the circuit's: they cannot use per-circuit services (JS interop, the circuit's `NavigationManager`). Subscribe through `IAppActivationService` in a component for circuit-specific handling |
 
 `BrowserNativeSdkInitializer` can live in any interactive root, for example a server-only component that wraps a shared
-`Routes` (see `samples/BlazorNativeSdk.Samples.Server`).
+`Routes` (see `demo/BlazorNativeSdk.Demo.Server`).
 
 During prerendering or static rendering no browser is attached: statuses are `Unknown` and operations return
 `Unavailable` / `host.not-ready`; the module import is retried on the next interactive call. Call capabilities from
@@ -104,7 +104,7 @@ On `notificationclick` the snippet ignores notifications not created by the SDK,
 (same-origin, inside the worker scope only) with the tap encoded in `?bns-notification-click=`, which the adapter
 publishes as a cold-start `Notification` activation and then removes from the address bar.
 
-* Register the worker before Blazor starts (see `samples/BlazorNativeSdk.Samples.Wasm/wwwroot/index.html`). On the first
+* Register the worker before Blazor starts (see `demo/BlazorNativeSdk.Demo.Wasm/wwwroot/index.html`). On the first
   visit the worker may still be installing; the adapter waits up to 3 seconds for it to activate before showing a
   notification, and up to half a second when it reports status.
 * Browsers have no equivalent of `NotificationAction.OpensApp = false` or `AcceptsText`: every action click focuses or

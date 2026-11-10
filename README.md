@@ -147,14 +147,14 @@ sealed class ArchiveMessageHandler(IMessageStore store) : IActivationHandler
 - Adapter guides: [Browser](docs/adapters/browser.md) · [Android](docs/adapters/android.md) · [iOS](docs/adapters/ios.md) ·
   [Windows](docs/adapters/windows.md) · [Desktop](docs/adapters/desktop.md) · [MAUI](docs/adapters/maui.md) · [WPF](docs/adapters/wpf.md)
 
-## Samples
+## Demo
 
-The pages in `samples/BlazorNativeSdk.Samples.Shared` run unchanged in every host:
+The pages in `demo/BlazorNativeSdk.Demo.Shared` run unchanged in every host:
 
-- `samples/BlazorNativeSdk.Samples.Wasm`: Blazor WebAssembly, with a service worker for notification actions and taps after the page closed.
-- `samples/BlazorNativeSdk.Samples.Server`: Blazor Server (interactive server rendering), with per-circuit capabilities.
-- `samples/BlazorNativeSdk.Samples.Maui`: .NET MAUI Blazor Hybrid on Android, iOS, Mac Catalyst and Windows, with the manifest, Info.plist and app delegate code the adapters need.
-- `samples/BlazorNativeSdk.Samples.Wpf`: WPF Blazor Hybrid with tray, hotkeys, menus, windows and single instance.
+- `demo/BlazorNativeSdk.Demo.Wasm`: Blazor WebAssembly, with a service worker for notification actions and taps after the page closed.
+- `demo/BlazorNativeSdk.Demo.Server`: Blazor Server (interactive server rendering), with per-circuit capabilities.
+- `demo/BlazorNativeSdk.Demo.Maui`: .NET MAUI Blazor Hybrid on Android, iOS, Mac Catalyst and Windows, with the manifest, Info.plist and app delegate code the adapters need.
+- `demo/BlazorNativeSdk.Demo.Wpf`: WPF Blazor Hybrid with tray, hotkeys, menus, windows and single instance.
 
 ## Building
 

@@ -49,7 +49,7 @@ jobs:
         with:
           global-json-file: global.json
       - run: dotnet workload install android ios maccatalyst maui
-      # Every package and sample; the MAUI sample builds its Android and Windows targets here (Apple app targets need a Mac).
+      # Every package and demo app; the MAUI demo builds its Android and Windows targets here (Apple app targets need a Mac).
       - run: dotnet build BlazorNativeSdk.slnx -c Release
       - run: dotnet test --project tests/BlazorNativeSdk.Windows.Tests -c Release
       - run: dotnet test --project tests/BlazorNativeSdk.Wpf.Tests -c Release

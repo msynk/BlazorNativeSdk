@@ -199,7 +199,7 @@ Declare what the capabilities you use need; the platform documents list the deta
 * **Windows** ([windows.md](windows.md), [desktop.md](desktop.md)): unpackaged apps register schemes at runtime
   (`RegisterProtocolSchemes`); packaged apps declare `windows.protocol` (and file type associations) in the manifest.
 
-`samples/BlazorNativeSdk.Samples.Maui` contains a complete, working set of these files.
+`demo/BlazorNativeSdk.Demo.Maui` contains a complete, working set of these files.
 
 ## Options
 
